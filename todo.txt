@@ -1,0 +1,8 @@
+- Faire les premiers templates HTML pour les différentes pages du jeu
+
+- Commencer a rediger les classes et les interactions avec JS ou Jquery
+
+- Commencer a se renseigner sur Php pour comprendre comment coder les sessions de 
+de jeu pour les differents utilisateurs 
+
+
