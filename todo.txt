@@ -5,4 +5,14 @@
 - Commencer a se renseigner sur Php pour comprendre comment coder les sessions de 
 de jeu pour les differents utilisateurs 
 
+animation : 
+	flip carte;
+	distribution carte;
+	changement de fond nuit/jour;
+aide :
+	explication fonctionnement du site;
+	explication/description carte;
 
+design : 
+	fond bleu, logo loup au centre;
+	carte pixelart; 
