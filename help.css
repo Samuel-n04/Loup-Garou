@@ -1,0 +1,54 @@
+.carte-bloc {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 32px;
+}
+
+.carte-info h3 {
+    margin: 0 0 8px 0;
+}
+
+.carte-info p {
+    margin: 0;
+}
+
+/* Flip */
+.carte-container {
+    width: 96px;
+    height: 96px;
+    perspective: 600px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.carte-inner {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.5s ease;
+}
+
+.carte-container.flipped .carte-inner {
+    transform: rotateY(180deg);
+}
+
+.carte-front,
+.carte-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+}
+
+.carte-front img,
+.carte-back img {
+    image-rendering: pixelated;
+    width: 96px;
+    height: 96px;
+}
+
+.carte-back {
+    transform: rotateY(180deg);
+}

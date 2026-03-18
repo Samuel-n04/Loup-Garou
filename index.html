@@ -6,14 +6,23 @@
         <title>Loup-Garou</title>
     </head>
     <body>
-        <div style="position: fixed; top: 16px; right: 16px">
+        <div
+            style="
+                position: fixed;
+                top: 16px;
+                right: 16px;
+                display: flex;
+                gap: 12px;
+            "
+        >
+            <span id="emailUser"></span>
             <a href="help.html">? Help</a>
+            <button id="btnDeconnexion">Se déconnecter</button>
         </div>
 
         <div id="container">
             <h1>Loup-Garou</h1>
 
-            <button>Se connecter</button>
             <button>Rejoindre une partie publique</button>
 
             <br /><br />
@@ -27,5 +36,29 @@
             />
             <button>Rejoindre</button>
         </div>
+
+        <script type="module">
+            import {
+                protegerPage,
+                getUtilisateur,
+                deconnecter,
+            } from "./auth.js";
+
+            // Redirige vers login si pas connecté
+            protegerPage();
+
+            // Affiche l'email de l'utilisateur connecté
+            getUtilisateur((user) => {
+                if (user) {
+                    document.getElementById("emailUser").textContent =
+                        user.email;
+                }
+            });
+
+            // Bouton déconnexion
+            document
+                .getElementById("btnDeconnexion")
+                .addEventListener("click", deconnecter);
+        </script>
     </body>
 </html>
