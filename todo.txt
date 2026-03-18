@@ -1,18 +1,28 @@
-- Faire les premiers templates HTML pour les différentes pages du jeu
+page d'accueil : 
+	animation(optionnel);
+	aide;
+	bouton identification;
+	possibilité de rejoindre une partie publique ou privée a laide d'un code;
 
-- Commencer a rediger les classes et les interactions avec JS ou Jquery
 
-- Commencer a se renseigner sur Php pour comprendre comment coder les sessions de 
-de jeu pour les differents utilisateurs 
+page help :
+	première partie : explication du fonctionnement du site;
+	deuxième partie : explication/description de la carte;
 
 animation : 
 	flip carte;
 	distribution carte;
 	changement de fond nuit/jour;
+	bleu/nuit;
+	jaune/jour;
 aide :
 	explication fonctionnement du site;
 	explication/description carte;
 
-design : 
+direction artistique: 
 	fond bleu, logo loup au centre;
-	carte pixelart; 
+	dégradé de bleu de l'exterieur vers le centre claire vers sombre;
+	carte pixelart;
+	gros penchant sur le pixel art;
+
+systeme de tranfert de donnéé à determiner:

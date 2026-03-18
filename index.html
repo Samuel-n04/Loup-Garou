@@ -1,33 +1,31 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Description de la page">
-  <title>Accueil</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Loup-Garou</title>
+    </head>
+    <body>
+        <div style="position: fixed; top: 16px; right: 16px">
+            <a href="help.html">? Help</a>
+        </div>
 
-  <header>
-    <nav>
-      <a href="/">Logo</a>
-      <ul>
-        <li><a href="#">Accueil</a></li>
-        <li><a href="#">À propos</a></li>
-        <li><a href="#">Contact</a></li>
-      </ul>
-    </nav>
-  </header>
+        <div id="container">
+            <h1>Loup-Garou</h1>
 
-  <main>
-    <p>Contenu de la page.</p>
-  </main>
+            <button>Se connecter</button>
+            <button>Rejoindre une partie publique</button>
 
-  <footer>
-    <p>&copy; 2026 </p>
-  </footer>
+            <br /><br />
 
-  <script src="script.js"></script>
-</body>
+            <label for="codeInput">Code de partie privée :</label>
+            <input
+                type="text"
+                id="codeInput"
+                maxlength="6"
+                placeholder="XXXXXX"
+            />
+            <button>Rejoindre</button>
+        </div>
+    </body>
 </html>
