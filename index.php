@@ -15,6 +15,16 @@
                 display: flex;
                 gap: 12px;
             ">
+
+        <span>
+
+            <?php
+            session_start();
+
+            echo ($_SESSION['pseudo']);
+            ?>
+
+        </span>
         <span id="emailUser"></span>
         <a href="help.html">? Help</a>
         <button id="btnDeconnexion">Se déconnecter</button>
