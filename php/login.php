@@ -12,8 +12,13 @@ if (!$mail || !$mdp) {
     exit;
 }
 
-$users = json_decode(file_get_contents('../data/user.json'), true);
+if (file_exists('../data/users.json')) {
+    $users = json_decode(file_get_contents('../data/users.json'), true);
+} else {
+    $users = [];
+}
 
+if (!is_array($users)) $users = [];
 
 
 if (!isset($users[$mail])) {

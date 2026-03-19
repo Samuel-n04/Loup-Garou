@@ -2,21 +2,25 @@ document.getElementById('btnConnexion')
     .addEventListener('click', async (e) => {
         e.preventDefault();
 
+        const erreur = document.getElementById('erreur');
+        erreur.textContent = '';
+
         const mail = document.getElementById('mail').value.trim();
         const mdp = document.getElementById('motDePasse').value;
 
         if (!mail || !mdp) {
-            document.getElementById('erreur').textContent = 'Remplis tous les champs.';
+            erreur.textContent = 'Remplis tous les champs.';
             return;
         }
 
-        const res = await fetch('../php/login.php', {
+        const request = await fetch('../php/login.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ mail, mdp })
         });
-        const data = await res.json();
+        const answer = await request.json();
 
-        if (data.status === 'ok') window.location.href = 'index.html';
-        else document.getElementById('erreur').textContent = data.error;
+        if (answer.error === 'Mot de passe incorrect') erreur.textContent = 'Mot de passe incorrect';
+        else if (answer.error === 'Mail introuvable') erreur.textContent = 'Mail introuvable';
+        else if (answer.status === 'ok') window.location.href = 'index.html';
     });
