@@ -34,7 +34,7 @@ export function arreterPolling() {
 }
 
 async function getEtat() {
-    const res = await fetch("etat.php");
+    const res = await fetch("php/etat.php");
     if (res.status === 401) {
         location.href = "login.html";
         return;
@@ -45,12 +45,10 @@ async function getEtat() {
 
 function _traiterEtat(etat) {
     if (!etat) return;
-
     if (etat.phase !== _phaseActuelle) {
         _phaseActuelle = etat.phase;
         on.phaseChange?.(etat);
     }
-
     if (etat.phase === "fin") {
         arreterPolling();
         on.fin?.(etat);
@@ -62,7 +60,7 @@ function _traiterEtat(etat) {
 //  Pas besoin d'envoyer l'idJoueur, la session PHP s'en charge
 // ============================================================
 async function action(data) {
-    const res = await fetch("action.php", {
+    const res = await fetch("php/action.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -90,3 +88,26 @@ export const vote = (idCible) => action({ action: "vote", idCible });
 export const chasseurTire = (idCible) =>
     action({ action: "chasseurTire", idCible });
 export const finNuit = () => action({ action: "finNuit" });
+
+// ── Endpoints séparés ─────────────────────────────────────
+async function requete(url, data = null) {
+    const options = data
+        ? {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(data),
+          }
+        : { method: "GET" };
+    const res = await fetch(url, options);
+    if (res.status === 401) {
+        location.href = "login.html";
+        return;
+    }
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.erreur ?? "Erreur serveur");
+    return json;
+}
+
+export const creerPartie = (roles, joueurMax) =>
+    requete("php/creategame.php", { roles, joueurMax });
+export const reset = () => requete("php/reset.php", {});

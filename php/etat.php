@@ -28,7 +28,8 @@ $joueur = array_find($etat["joueurs"], fn($j) => $j["id"] === $idJoueur);
 $reponse = [
     "phase"   => $etat["phase"],
     "tour"    => $etat["tour"],
-    "estHote" => $etat["hote"] === $idJoueur,
+    "estHote"   => $etat["hote"] === $idJoueur,
+    "monPseudo" => $idJoueur,
     "joueurs" => array_map(fn($j) => [
         "id"     => $j["id"],
         "nom"    => $j["nom"],

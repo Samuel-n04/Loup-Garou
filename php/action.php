@@ -193,7 +193,7 @@ if ($erreur) {
 // ============================================================
 function distribuerRoles(array $etat): array {
     $n     = count($etat["joueurs"]);
-    $roles = genererRoles($n);
+    $roles = genererRoles($n, $etat["rolesActifs"] ?? []);
     shuffle($roles);
     foreach ($etat["joueurs"] as $i => &$j) {
         $j["role"] = $roles[$i];
@@ -204,11 +204,11 @@ function distribuerRoles(array $etat): array {
     return $etat;
 }
 
-function genererRoles(int $n): array {
+function genererRoles(int $n, array $rolesActifs = []): array {
     $roles   = [];
     $nbLoups = $n >= 10 ? 3 : ($n >= 7 ? 2 : 1);
     for ($i = 0; $i < $nbLoups; $i++) $roles[] = "loup-garou";
-    $speciaux = ["voyante", "sorciere", "chasseur", "cupidon", "petite-fille"];
+    $speciaux = !empty($rolesActifs) ? $rolesActifs : ["voyante", "sorciere", "chasseur", "cupidon", "petite-fille"];
     foreach ($speciaux as $r) {
         if (count($roles) < $n) $roles[] = $r;
     }

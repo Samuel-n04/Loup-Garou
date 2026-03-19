@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="fr">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Lobby - Loup-Garou</title>
+        <link rel="stylesheet" href="css/lobby.css" />
+    </head>
+
+    <body>
+        <div id="container">
+            <h1>Lobby</h1>
+
+            <!-- ── Créer une partie ──────────────────────────────── -->
+            <section id="section-creer">
+                <h2>Créer une partie</h2>
+
+                <label for="joueurMax">Nombre de joueurs max</label>
+                <input
+                    type="number"
+                    id="joueurMax"
+                    min="4"
+                    max="20"
+                    value="8"
+                />
+
+                <fieldset>
+                    <legend>Rôles à activer</legend>
+                    <label
+                        ><input
+                            type="checkbox"
+                            name="role"
+                            value="voyante"
+                            checked
+                        />
+                        Voyante</label
+                    >
+                    <label
+                        ><input
+                            type="checkbox"
+                            name="role"
+                            value="sorciere"
+                            checked
+                        />
+                        Sorcière</label
+                    >
+                    <label
+                        ><input
+                            type="checkbox"
+                            name="role"
+                            value="chasseur"
+                            checked
+                        />
+                        Chasseur</label
+                    >
+                    <label
+                        ><input
+                            type="checkbox"
+                            name="role"
+                            value="cupidon"
+                            checked
+                        />
+                        Cupidon</label
+                    >
+                    <label
+                        ><input
+                            type="checkbox"
+                            name="role"
+                            value="petite-fille"
+                            checked
+                        />
+                        Petite Fille</label
+                    >
+                </fieldset>
+
+                <button id="btnCreer">Créer la partie</button>
+                <p id="erreur-creer"></p>
+            </section>
+
+            <hr />
+
+            <!-- ── Partie en cours ──────────────────────────────── -->
+            <section id="section-partie" hidden>
+                <h2>Partie en cours</h2>
+
+                <p id="info-hote"></p>
+
+                <h3>Joueurs connectés (<span id="nb-joueurs">0</span>)</h3>
+                <ul id="liste-joueurs"></ul>
+
+                <div id="actions-hote" hidden>
+                    <button id="btnDemarrer">Démarrer la partie</button>
+                    <button id="btnReset">Annuler la partie</button>
+                </div>
+
+                <div id="actions-joueur" hidden>
+                    <button id="btnRejoindre">Rejoindre la partie</button>
+                </div>
+
+                <p id="erreur-partie"></p>
+            </section>
+        </div>
+
+        <script type="module" src="js/lobby.js"></script>
+    </body>
+</html>
