@@ -18,12 +18,14 @@ if (file_exists('../data/users.json')) {
     $users = [];
 }
 
+if (!is_array($users)) $users = [];
+
 if (isset($users[$pseudo])) {
     echo json_encode(['error' => 'pseudo existant']);
     exit;
 }
 
-if (in_array($mail, array_column($users, 'email'))) {
+if (in_array($mail, array_column(array_values($users), 'email'))) {
     echo json_encode(['error' => 'mail existant']);
     exit;
 }
@@ -34,8 +36,7 @@ $users[$pseudo] = [
     'created_at' => date('Y-m-d')
 ];
 
-file_put_contents('../data/users.json', json_encode($users));
-
+file_put_contents('../data/users.json', json_encode($users, JSON_PRETTY_PRINT));
 $_SESSION['pseudo'] = $pseudo;
 $_SESSION['mail']   = $mail;
 echo json_encode(['status' => 'ok']);

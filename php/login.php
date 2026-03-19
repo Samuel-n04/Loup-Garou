@@ -12,7 +12,7 @@ if (!$mail || !$mdp) {
     exit;
 }
 
-$users = json_decode(file_get_contents('../data/users.json'), true);
+$users = json_decode(file_get_contents('../data/user.json'), true);
 
 
 

@@ -1,0 +1,27 @@
+{
+    "sam": {
+        "password": "$2y$10$mzVaKyZ26XPesKii6Z.YAuMdilu1OUEchTrlCxrI..503M4UgIiRa",
+        "email": "indien@icloud.com",
+        "created_at": "2026-03-19"
+    },
+    "darren": {
+        "password": "$2y$10$rqdrYEJS.dAIT9HCkXaFTOMXPsLMVqvSYKJDI4YReHXKDXXLuiovK",
+        "email": "aaa",
+        "created_at": "2026-03-19"
+    },
+    "aze": {
+        "password": "$2y$10$rVyj3wu55Ca1ZbgCAIBT\/Ox91wAzEauwannTDp7PzNqLt8iqAuEli",
+        "email": "aaaaaaa",
+        "created_at": "2026-03-19"
+    },
+    "samuel": {
+        "password": "$2y$10$Rh8\/eZpMHTjWsM4143SbR.YBnjPvznpPkTeSh1Gyb\/9MwtunK.dPO",
+        "email": "bbbbb",
+        "created_at": "2026-03-19"
+    },
+    "samuell": {
+        "password": "$2y$10$ygzISEY2qp3Z\/LYvRFRvqOe5H9kR6DYdYGr4JRxIDBvKaXh89cUeq",
+        "email": "bbbbbb",
+        "created_at": "2026-03-19"
+    }
+}

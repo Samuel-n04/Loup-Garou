@@ -23,18 +23,18 @@ document.getElementById("btnInscription").addEventListener("click", async (e) =>
         return;
     }
 
-    const request = await fetch('..php / register', {
+    const request = await fetch('../php/register.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pseudo, email, motDePasse })
+        body: JSON.stringify({ pseudo, email, mdp: motDePasse })
     });
     const answer = await request.json();
 
-    if (answer.status === "mail existant") {
+    if (answer.error === "mail existant") {
         erreur.textContent = "Le mail appartient deja a un compte existant";
     }
 
-    if (answer.status === "pseudo existant") {
+    if (answer.error === "pseudo existant") {
         erreur.textContent = "Le pseudo que vous avez indiqué appartient deja a un compte existant";
     }
 
