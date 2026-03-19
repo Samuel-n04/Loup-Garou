@@ -1,33 +1,34 @@
-# 🐺 Loup-Garou de Thiercelieux
+#  Loup-Garou de Thiercelieux
 
 Jeu de rôle multijoueur en ligne développé en PHP/JavaScript dans le cadre du projet de Programmation Web — L3 Informatique, Université Sorbonne Paris Nord (2025-2026).
 
-## 👥 Auteurs
+## Auteurs
 
-- [Nom 1]
-- [Nom 2]
+- PIERRE Jean-Samuel
+- CHAUVET Darren
+- COULIBALY Bourama
 
-## 🎮 Description
+##  Description
 
 Version web du célèbre jeu de société Loup-Garou de Thiercelieux.
 Plusieurs joueurs s'affrontent en temps réel depuis leur navigateur.
 La partie alterne entre une phase de nuit (actions secrètes) et une phase de jour (débat + vote).
 
 ### Rôles disponibles
-- 🐺 Loup-Garou
-- 🔮 Voyante
-- 🧙 Sorcière
-- 🏹 Chasseur
-- 🧑‍🌾 Villageois
+-  Loup-Garou
+-  Voyante
+-  Sorcière
+-  Chasseur
+-  Villageois
 
-## 🛠️ Stack technique
+##  Stack technique
 
 - **Frontend** : HTML, CSS, JavaScript (Vanilla)
 - **Backend** : PHP
 - **Stockage** : Fichiers JSON (pas de base de données)
 - **Synchronisation** : Polling (fetch toutes les 2s)
 
-## 📁 Structure du projet
+##  Structure du projet
 ```
 /loup-garou/
 ├── index.php
@@ -66,7 +67,7 @@ La partie alterne entre une phase de nuit (actions secrètes) et une phase de jo
 └── README.md
 ```
 
-## ⚙️ Installation
+##  Installation
 
 ### Prérequis
 - PHP 8.0 ou supérieur
@@ -99,7 +100,7 @@ php -S localhost:8000
 http://localhost:8000/login.html
 ```
 
-## 🚀 Utilisation
+##  Utilisation
 
 1. Créer un compte sur `/register.html`
 2. Se connecter sur `/login.html`
