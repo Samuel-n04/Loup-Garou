@@ -1,118 +1,106 @@
 <!doctype html>
 <html lang="fr">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Aide - Loup-Garou</title>
-        <link rel="stylesheet" href="help.css" />
-    </head>
-    <body>
-        <div style="position: fixed; top: 16px; left: 16px">
-            <a href="index.html">← Retour</a>
-        </div>
 
-        <div id="container">
-            <h1>Aide</h1>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aide - Loup-Garou</title>
+    <link rel="stylesheet" href="../css/help.css" />
+</head>
 
-            <!-- PARTIE 1 : Fonctionnement du site -->
-            <section id="fonctionnement">
-                <h2>Comment ça marche ?</h2>
-                <p><!-- TODO : explication du fonctionnement du site --></p>
-            </section>
+<body>
+    <div style="position: fixed; top: 16px; left: 16px">
+        <a href="index.html">← Retour</a>
+    </div>
 
-            <hr />
+    <div id="container">
+        <h1>Aide</h1>
 
-            <!-- PARTIE 2 : Les cartes -->
-            <section id="cartes">
-                <h2>Les cartes</h2>
+        <!-- PARTIE 1 : Fonctionnement du site -->
+        <section id="fonctionnement">
+            <h2>Comment ça marche ?</h2>
+            <p><!-- TODO : explication du fonctionnement du site --></p>
+        </section>
 
-                <div class="carte-bloc">
-                    <div class="carte-container" onclick="flip(this)">
-                        <div class="carte-inner">
-                            <div class="carte-front">
-                                <img
-                                    src="sprite/backCard.png"
-                                    alt="Dos de carte"
-                                />
-                            </div>
-                            <div class="carte-back">
-                                <img
-                                    src="sprite/loupGarou.png"
-                                    alt="Loup-Garou"
-                                />
-                            </div>
+        <hr />
+
+        <!-- PARTIE 2 : Les cartes -->
+        <section id="cartes">
+            <h2>Les cartes</h2>
+
+            <div class="carte-bloc">
+                <div class="carte-container" onclick="flip(this)">
+                    <div class="carte-inner">
+                        <div class="carte-front">
+                            <img src="../sprite/backCard.png" alt="Dos de carte" />
+                        </div>
+                        <div class="carte-back">
+                            <img src="../sprite/loupGarou.png" alt="Loup-Garou" />
                         </div>
                     </div>
-                    <div class="carte-info">
-                        <h3>Loup-Garou</h3>
-                        <p>
-                            Chaque nuit, les Loups-Garous se réveillent et
-                            choisissent ensemble une victime à éliminer parmi
-                            les villageois. Leur objectif est d'éliminer tous
-                            les villageois avant d'être découverts. Le jour, ils
-                            font semblant d'être des villageois ordinaires pour
-                            éviter d'être accusés.
-                        </p>
-                    </div>
                 </div>
+                <div class="carte-info">
+                    <h3>Loup-Garou</h3>
+                    <p>
+                        Chaque nuit, les Loups-Garous se réveillent et
+                        choisissent ensemble une victime à éliminer parmi
+                        les villageois. Leur objectif est d'éliminer tous
+                        les villageois avant d'être découverts. Le jour, ils
+                        font semblant d'être des villageois ordinaires pour
+                        éviter d'être accusés.
+                    </p>
+                </div>
+            </div>
 
-                <div class="carte-bloc">
-                    <div class="carte-container" onclick="flip(this)">
-                        <div class="carte-inner">
-                            <div class="carte-front">
-                                <img
-                                    src="sprite/backCard.png"
-                                    alt="Dos de carte"
-                                />
-                            </div>
-                            <div class="carte-back">
-                                <img
-                                    src="sprite/villageois.png"
-                                    alt="Villageois"
-                                />
-                            </div>
+            <div class="carte-bloc">
+                <div class="carte-container" onclick="flip(this)">
+                    <div class="carte-inner">
+                        <div class="carte-front">
+                            <img src="../sprite/backCard.png" alt="Dos de carte" />
+                        </div>
+                        <div class="carte-back">
+                            <img src="../sprite/villageois.png" alt="Villageois" />
                         </div>
                     </div>
-                    <div class="carte-info">
-                        <h3>Villageois</h3>
-                        <p>
-                            Le Villageois n'a aucun pouvoir spécial. Son seul
-                            outil est la parole : chaque jour, il doit
-                            convaincre les autres de son innocence et tenter
-                            d'identifier les Loups-Garous parmi le groupe pour
-                            les éliminer par vote.
-                        </p>
-                    </div>
                 </div>
+                <div class="carte-info">
+                    <h3>Villageois</h3>
+                    <p>
+                        Le Villageois n'a aucun pouvoir spécial. Son seul
+                        outil est la parole : chaque jour, il doit
+                        convaincre les autres de son innocence et tenter
+                        d'identifier les Loups-Garous parmi le groupe pour
+                        les éliminer par vote.
+                    </p>
+                </div>
+            </div>
 
-                <div class="carte-bloc">
-                    <div class="carte-container" onclick="flip(this)">
-                        <div class="carte-inner">
-                            <div class="carte-front">
-                                <img
-                                    src="sprite/backCard.png"
-                                    alt="Dos de carte"
-                                />
-                            </div>
-                            <div class="carte-back">
-                                <img src="sprite/voyante.png" alt="Voyante" />
-                            </div>
+            <div class="carte-bloc">
+                <div class="carte-container" onclick="flip(this)">
+                    <div class="carte-inner">
+                        <div class="carte-front">
+                            <img src="../sprite/backCard.png" alt="Dos de carte" />
+                        </div>
+                        <div class="carte-back">
+                            <img src="../sprite/voyante.png" alt="Voyante" />
                         </div>
                     </div>
-                    <div class="carte-info">
-                        <h3>Voyante</h3>
-                        <p>
-                            Chaque nuit, la Voyante peut observer secrètement
-                            l'identité d'un joueur de son choix. Elle sait ainsi
-                            s'il est Loup-Garou ou non. Elle doit utiliser cette
-                            information avec prudence pour guider les villageois
-                            sans se dévoiler.
-                        </p>
-                    </div>
                 </div>
-            </section>
-        </div>
+                <div class="carte-info">
+                    <h3>Voyante</h3>
+                    <p>
+                        Chaque nuit, la Voyante peut observer secrètement
+                        l'identité d'un joueur de son choix. Elle sait ainsi
+                        s'il est Loup-Garou ou non. Elle doit utiliser cette
+                        information avec prudence pour guider les villageois
+                        sans se dévoiler.
+                    </p>
+                </div>
+            </div>
+        </section>
+    </div>
 
-        <script src="help.js"></script>
-    </body>
+    <script src="../js/help.js"></script>
+</body>
+
 </html>
