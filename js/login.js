@@ -1,23 +1,22 @@
-import { auth } from "./firebase.js";
-import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
+document.getElementById('btnConnexion')
+    .addEventListener('click', async (e) => {
+        e.preventDefault();
 
-document.getElementById("btnConnexion").addEventListener("click", () => {
-    const email = document.getElementById("email").value.trim();
-    const motDePasse = document.getElementById("motDePasse").value;
-    const erreur = document.getElementById("erreur");
+        const mail = document.getElementById('mail').value.trim();
+        const mdp = document.getElementById('motDePasse').value;
 
-    if (!email || !motDePasse) {
-        erreur.textContent = "Remplis tous les champs.";
-        return;
-    }
+        if (!mail || !mdp) {
+            document.getElementById('erreur').textContent = 'Remplis tous les champs.';
+            return;
+        }
 
-    signInWithEmailAndPassword(auth, email, motDePasse)
-        .then((userCredential) => {
-            // Connecté, redirige vers le jeu
-            window.location.href = "index.html";
-        })
-        .catch((error) => {
-            erreur.textContent = "Email ou mot de passe incorrect.";
-            console.error(error.message);
+        const res = await fetch('../php/login.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mail, mdp })
         });
-});
+        const data = await res.json();
+
+        if (data.status === 'ok') window.location.href = 'index.html';
+        else document.getElementById('erreur').textContent = data.error;
+    });
