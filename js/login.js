@@ -21,5 +21,5 @@ document.getElementById('btnConnexion').addEventListener('click', async (e) => {
 
     if (answer.error === 'Mot de passe incorrect') erreur.textContent = 'Mot de passe incorrect';
     else if (answer.error === 'Mail introuvable') erreur.textContent = 'Mail introuvable';
-    else if (answer.status === 'ok') window.location.href = 'index.html';
+    else if (answer.status === 'ok') window.location.href = 'php/index.php';
 });

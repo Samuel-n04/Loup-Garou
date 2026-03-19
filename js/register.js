@@ -46,7 +46,7 @@ document.getElementById("btnInscription").addEventListener("click", async (e) =>
 
 
     if (answer.status === "ok") {
-        window.location.href = 'index.html';
+        window.location.href = 'php/index.php';
 
 
 

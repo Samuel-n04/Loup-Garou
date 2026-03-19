@@ -23,5 +23,25 @@
         "password": "$2y$10$ypzLko.6vTxULqii4g.oB.2EN7OGgpV531RO21SGmPJmC4323Z\/c6",
         "email": "jimmy",
         "created_at": "2026-03-19"
+    },
+    "jimmyy": {
+        "password": "$2y$10$jj1vxReAegaqqtnxSWvE5eNQTai31MiHl4274qJgalT90qQJmj1Gu",
+        "email": "jimmyy",
+        "created_at": "2026-03-19"
+    },
+    "SAMUEL": {
+        "password": "$2y$10$K8yafV6CLkYDFpnomX7JQ.Z9uMYnYxmswikPwFXGCM.KiYfGVa6Em",
+        "email": "test",
+        "created_at": "2026-03-19"
+    },
+    "SAMUELL": {
+        "password": "$2y$10$zw.FsIJQXfVL.3Lk1ugdDu.26csoE36J1mq.bfAZJdhxs0WPr2f2e",
+        "email": "test2",
+        "created_at": "2026-03-19"
+    },
+    "Bourama": {
+        "password": "$2y$10$\/gQOSgi5UGi4lNFRfNIcie.so0jwJFdvNosHh1lGpTouTmJB4NShG",
+        "email": "boubou",
+        "created_at": "2026-03-19"
     }
 }
