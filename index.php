@@ -39,7 +39,8 @@
 
         <label for="codeInput">Code de partie privée :</label>
         <input type="text" id="codeInput" maxlength="6" placeholder="XXXXXX" />
-        <button>Rejoindre</button>
+        <button id="join">Rejoindre</button>
+        <p id="erreur"></p>
     </div>
 
     <script type="module" src="js/index.js">
