@@ -42,28 +42,8 @@
         <button>Rejoindre</button>
     </div>
 
-    <script type="module">
-        import {
-            protegerPage,
-            getUtilisateur,
-            deconnecter,
-        } from "js/auth.js";
+    <script type="module" src="js/index.js">
 
-        // Redirige vers login si pas connecté
-        protegerPage();
-
-        // Affiche l'email de l'utilisateur connecté
-        getUtilisateur((user) => {
-            if (user) {
-                document.getElementById("emailUser").textContent =
-                    user.email;
-            }
-        });
-
-        // Bouton déconnexion
-        document
-            .getElementById("btnDeconnexion")
-            .addEventListener("click", deconnecter);
     </script>
 </body>
 
