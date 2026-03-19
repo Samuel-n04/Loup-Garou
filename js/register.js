@@ -5,7 +5,8 @@ document.getElementById("btnInscription").addEventListener("click", async (e) =>
     const motDePasse = document.getElementById("motDePasse").value;
     const confirmation = document.getElementById("confirmation").value;
     const pseudo = document.getElementById("pseudo").value.trim();
-    const erreur = document.getElementById("erreur");
+    let erreur = document.getElementById("erreur");
+    erreur.textContent = "";
 
     if (!pseudo || !email || !motDePasse || !confirmation) {
         erreur.textContent = "Remplis tous les champs.";
@@ -36,6 +37,11 @@ document.getElementById("btnInscription").addEventListener("click", async (e) =>
 
     if (answer.error === "pseudo existant") {
         erreur.textContent = "Le pseudo que vous avez indiqué appartient deja a un compte existant";
+    }
+
+
+    if (answer.error === "champs manquants") {
+        erreur.textContent = "champs manquants";
     }
 
 
