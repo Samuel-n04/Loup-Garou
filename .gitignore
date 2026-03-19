@@ -1,0 +1,10 @@
+*.pdf
+*.zip
+*.tar.gz
+*.log
+*.tmp
+*.bak
+*.swp
+*.DS_Store
+*.txt   
+*.json
