@@ -41,7 +41,7 @@ switch ($action) {
 
     // ── Lobby ───────────────────────────────────────────────
     case "rejoindre":
-        if (array_find($etat["joueurs"], fn($j) => $j["id"] === $idJoueur)) {
+        if (trouverDans($etat["joueurs"], fn($j) => $j["id"] === $idJoueur)) {
             $erreur = "Joueur déjà inscrit";
             break;
         }
@@ -104,7 +104,7 @@ switch ($action) {
         if (count($etat["votesLoups"]) >= count($loups)) {
             $etat["victime"]    = majoritéVotes($etat["votesLoups"]);
             $etat["votesLoups"] = [];
-            $hasSorciere = (bool) array_find($etat["joueurs"], fn($j) => $j["role"] === "sorciere" && $j["vivant"]);
+            $hasSorciere = (bool) trouverDans($etat["joueurs"], fn($j) => $j["role"] === "sorciere" && $j["vivant"]);
             $etat["phase"] = $hasSorciere ? "nuit-sorciere" : "fin-nuit";
         }
         break;
@@ -170,6 +170,34 @@ switch ($action) {
         $etat = apresElimination($etat);
         break;
 
+    // ── Quitter la partie ───────────────────────────────────
+    case "quitter":
+        $estHote = $etat["hote"] === $idJoueur;
+        $etat["joueurs"] = array_values(array_filter(
+            $etat["joueurs"],
+            fn($j) => $j["id"] !== $idJoueur
+        ));
+        // Si c'était l'hôte et qu'il reste des joueurs → transférer
+        if ($estHote && count($etat["joueurs"]) > 0) {
+            $etat["hote"] = $etat["joueurs"][0]["id"];
+        }
+        break;
+
+    // ── Chat ────────────────────────────────────────────────
+    case "chat":
+        $texte = trim($body["texte"] ?? "");
+        if (!$texte) { $erreur = "Message vide"; break; }
+        if (strlen($texte) > 200) { $erreur = "Message trop long"; break; }
+        $etat["messages"][] = [
+            "auteur" => $idJoueur,
+            "texte"  => $texte,
+            "ts"     => time(),
+        ];
+        if (count($etat["messages"]) > 100) {
+            $etat["messages"] = array_slice($etat["messages"], -100);
+        }
+        break;
+
     default:
         $erreur = "Action inconnue : $action";
 }
@@ -219,11 +247,11 @@ function genererRoles(int $n, array $rolesActifs = []): array {
 function demarrerNuit(array $etat): array {
     $etat["victime"]    = null;
     $etat["votesLoups"] = [];
-    $hasCupidon = (bool) array_find($etat["joueurs"], fn($j) => $j["role"] === "cupidon" && $j["vivant"]);
+    $hasCupidon = (bool) trouverDans($etat["joueurs"], fn($j) => $j["role"] === "cupidon" && $j["vivant"]);
     if ($etat["tour"] === 1 && $hasCupidon && !($etat["cupidonFait"] ?? false)) {
         $etat["phase"] = "nuit-cupidon";
     } else {
-        $hasVoyante = (bool) array_find($etat["joueurs"], fn($j) => $j["role"] === "voyante" && $j["vivant"]);
+        $hasVoyante = (bool) trouverDans($etat["joueurs"], fn($j) => $j["role"] === "voyante" && $j["vivant"]);
         $etat["phase"] = $hasVoyante ? "nuit-voyante" : "nuit-loups";
     }
     return $etat;
@@ -309,13 +337,13 @@ function ecrireJSON(string $chemin, array $data): void {
     file_put_contents($chemin, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 }
 
-function array_find(array $arr, callable $fn): ?array {
+function trouverDans(array $arr, callable $fn): ?array {
     foreach ($arr as $item) { if ($fn($item)) return $item; }
     return null;
 }
 
 function findJoueur(array $etat, string $id): array {
-    return array_find($etat["joueurs"], fn($j) => $j["id"] === $id)
+    return trouverDans($etat["joueurs"], fn($j) => $j["id"] === $id)
         ?? throw new Exception("Joueur $id introuvable");
 }
 

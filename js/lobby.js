@@ -1,17 +1,12 @@
 import * as API from "./api.js";
 
-// ── État local ────────────────────────────────────────────
-let estDansPartie = false;
-
 // ── Au chargement ─────────────────────────────────────────
 verifierEtat();
-API.demarrerPolling(2000);
 
 API.on.phaseChange = (etat) => {
     if (etat.phase === "attente") {
         afficherPartieEnCours(etat);
     } else {
-        // Partie démarrée → aller sur game.html
         location.href = "game.html";
     }
 };
@@ -19,71 +14,80 @@ API.on.phaseChange = (etat) => {
 // ── Vérifier s'il y a une partie en cours ─────────────────
 async function verifierEtat() {
     try {
-        const res = await fetch("php/etat.php");
-        if (res.status === 401) {
-            location.href = "login.html";
-            return;
-        }
+        const res = await fetch("php/etat.php?depuis=0");
+        if (res.status === 401) { location.href = "login.html"; return; }
         const etat = await res.json();
 
         if (etat.phase && etat.phase !== "attente") {
-            // Partie déjà en cours → rediriger directement
             location.href = "game.html";
             return;
         }
 
         if (etat.phase === "attente") {
-            // Une partie existe, afficher la section rejoindre
-            document.getElementById("section-creer").hidden = true;
-            document.getElementById("section-partie").hidden = false;
             afficherPartieEnCours(etat);
+            API.demarrerPolling(2000);
+        } else {
+            afficherFormulaire();
         }
-        // Sinon : pas de partie → afficher la section créer (défaut)
     } catch (e) {
         console.error("Erreur vérification état :", e);
+        afficherFormulaire();
     }
 }
 
-// ── Afficher la liste des joueurs ─────────────────────────
+// ── Afficher le formulaire de création ────────────────────
+function afficherFormulaire() {
+    document.getElementById("section-creer").hidden  = false;
+    document.getElementById("section-partie").hidden = true;
+}
+
+// ── Afficher la section lobby ─────────────────────────────
 function afficherPartieEnCours(etat) {
-    document.getElementById("section-creer").hidden = true;
+    document.getElementById("section-creer").hidden  = true;
     document.getElementById("section-partie").hidden = false;
 
     document.getElementById("nb-joueurs").textContent = etat.joueurs.length;
-    document.getElementById("info-hote").textContent =
-        `Hôte : ${etat.joueurs[0]?.nom ?? ""}`;
+    document.getElementById("info-hote").textContent  = `Hôte : ${etat.joueurs[0]?.nom ?? ""}`;
 
     const liste = document.getElementById("liste-joueurs");
-    liste.innerHTML = etat.joueurs.map((j) => `<li>${j.nom}</li>`).join("");
+    liste.innerHTML = etat.joueurs.map(j => `<li>${j.nom}</li>`).join("");
 
-    estDansPartie = etat.joueurs.some((j) => j.id === etat.monPseudo);
+    const estDansPartie = etat.joueurs.some(j => j.id === etat.monPseudo);
+
+    // Cacher tous les blocs d'actions d'abord
+    document.getElementById("actions-hote").hidden    = true;
+    document.getElementById("actions-joueur").hidden  = true;
+    document.getElementById("actions-quitter").hidden = true;
 
     if (etat.estHote) {
-        document.getElementById("actions-hote").hidden = false;
-        document.getElementById("actions-joueur").hidden = true;
+        document.getElementById("actions-hote").hidden    = false;
     } else if (!estDansPartie) {
-        document.getElementById("actions-hote").hidden = true;
-        document.getElementById("actions-joueur").hidden = false;
+        document.getElementById("actions-joueur").hidden  = false;
     } else {
-        // Déjà dans la partie, en attente
-        document.getElementById("actions-hote").hidden = true;
-        document.getElementById("actions-joueur").hidden = true;
+        // Dans la partie mais pas hôte → bouton quitter
+        document.getElementById("actions-quitter").hidden = false;
     }
 }
 
 // ── Créer une partie ──────────────────────────────────────
 document.getElementById("btnCreer").addEventListener("click", async () => {
-    const roles = [
-        ...document.querySelectorAll("input[name='role']:checked"),
-    ].map((cb) => cb.value);
+    const roles = [...document.querySelectorAll("input[name='role']:checked")]
+        .map(cb => cb.value);
     const joueurMax = parseInt(document.getElementById("joueurMax").value);
 
     try {
         await API.creerPartie(roles, joueurMax);
         document.getElementById("erreur-creer").textContent = "";
-        verifierEtat();
+        await verifierEtat();
+        API.demarrerPolling(2000);
     } catch (e) {
-        document.getElementById("erreur-creer").textContent = e.message;
+        if (e.message === "Une partie est déjà en cours.") {
+            document.getElementById("erreur-creer").textContent =
+                "Une partie est déjà en cours. Tu peux la rejoindre ci-dessous.";
+            await verifierEtat();
+        } else {
+            document.getElementById("erreur-creer").textContent = e.message;
+        }
     }
 });
 
@@ -92,7 +96,8 @@ document.getElementById("btnRejoindre").addEventListener("click", async () => {
     try {
         await API.rejoindre();
         document.getElementById("erreur-partie").textContent = "";
-        document.getElementById("actions-joueur").hidden = true;
+        document.getElementById("actions-joueur").hidden  = true;
+        document.getElementById("actions-quitter").hidden = false;
     } catch (e) {
         document.getElementById("erreur-partie").textContent = e.message;
     }
@@ -108,12 +113,25 @@ document.getElementById("btnDemarrer").addEventListener("click", async () => {
     }
 });
 
-// ── Annuler / reset (hôte) ────────────────────────────────
+// ── Annuler la partie (hôte) ──────────────────────────────
 document.getElementById("btnReset").addEventListener("click", async () => {
     if (!confirm("Annuler la partie en cours ?")) return;
     try {
         await API.reset();
-        location.reload();
+        API.arreterPolling();
+        afficherFormulaire();
+    } catch (e) {
+        document.getElementById("erreur-partie").textContent = e.message;
+    }
+});
+
+// ── Quitter la partie (joueur) ────────────────────────────
+document.getElementById("btnQuitterLobby").addEventListener("click", async () => {
+    if (!confirm("Quitter la partie ?")) return;
+    try {
+        await API.quitter();
+        API.arreterPolling();
+        afficherFormulaire();
     } catch (e) {
         document.getElementById("erreur-partie").textContent = e.message;
     }

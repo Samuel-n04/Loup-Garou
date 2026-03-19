@@ -22,13 +22,14 @@ if (!$etat) {
 }
 
 // ── Trouver le joueur connecté ─────────────────────────────
-$joueur = array_find($etat["joueurs"], fn($j) => $j["id"] === $idJoueur);
+$joueur = trouverDans($etat["joueurs"], fn($j) => $j["id"] === $idJoueur);
 
 // ── Réponse de base (publique) ─────────────────────────────
 $reponse = [
     "phase"   => $etat["phase"],
     "tour"    => $etat["tour"],
     "estHote"   => $etat["hote"] === $idJoueur,
+    "monPseudo" => $idJoueur,
     "monPseudo" => $idJoueur,
     "joueurs" => array_map(fn($j) => [
         "id"     => $j["id"],
@@ -75,6 +76,13 @@ if ($etat["phase"] === "vote") {
     $reponse["nbVivants"]  = count(array_filter($etat["joueurs"], fn($j) => $j["vivant"]));
 }
 
+// ── Messages chat ──────────────────────────────────────────
+$depuis = intval($_GET["depuis"] ?? 0);
+$reponse["messages"] = array_values(array_filter(
+    $etat["messages"] ?? [],
+    fn($m) => $m["ts"] > $depuis
+));
+
 // ── Fin de partie : révéler tous les rôles ─────────────────
 if ($etat["phase"] === "fin") {
     $reponse["vainqueur"] = $etat["vainqueur"];
@@ -96,7 +104,7 @@ function lireJSON(string $chemin): ?array {
     return json_decode(file_get_contents($chemin), true);
 }
 
-function array_find(array $arr, callable $fn): ?array {
+function trouverDans(array $arr, callable $fn): ?array {
     foreach ($arr as $item) { if ($fn($item)) return $item; }
     return null;
 }

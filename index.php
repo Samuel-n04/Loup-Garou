@@ -1,4 +1,5 @@
 <?php
+
 session_start();
 
 // Rediriger vers login si pas connecté

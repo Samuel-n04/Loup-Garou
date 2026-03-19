@@ -6,6 +6,7 @@
 
 let _phaseActuelle = null;
 let _pollingTimer = null;
+let _dernierTs    = 0;
 
 // ── Callbacks à brancher depuis ton code UI ────────────────
 export const on = {
@@ -34,7 +35,7 @@ export function arreterPolling() {
 }
 
 async function getEtat() {
-    const res = await fetch("php/etat.php");
+    const res = await fetch(`php/etat.php?depuis=${_dernierTs}`);
     if (res.status === 401) {
         location.href = "login.html";
         return;
@@ -111,3 +112,6 @@ async function requete(url, data = null) {
 export const creerPartie = (roles, joueurMax) =>
     requete("php/creategame.php", { roles, joueurMax });
 export const reset = () => requete("php/reset.php", {});
+
+export const chat = (texte) => action({ action: "chat", texte });
+export const quitter = () => action({ action: "quitter" });

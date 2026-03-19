@@ -63,6 +63,7 @@ $etat = [
     "vainqueur"       => null,
     "resultatVoyante" => null,
     "cupidonFait"     => false,
+    "messages"        => [],
 ];
 
 // Vérouiller avant écriture

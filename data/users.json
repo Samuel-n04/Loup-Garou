@@ -48,5 +48,30 @@
         "password": "$2y$12$aWqqO72\/gG1gZQv4UZ5Ll.5sb4VYojLSCAA3eP0rV59ago7yUkaBi",
         "email": "babayaga]gmail.com",
         "created_at": "2026-03-19"
+    },
+    "darren": {
+        "password": "$2y$12$pWbv2t7R1Bhdr18XcXIjt.Rrq03FbUuRT6pdnOr.qHpd3nrAzFTy2",
+        "email": "alexyschauvet@gmail.com",
+        "created_at": "2026-03-19"
+    },
+    "un": {
+        "password": "$2y$12$gxmAqft8KRuQilL6eXy5\/.wChod.fh1E99mjUopToUNbMMzKJ7cP.",
+        "email": "un@gmail.com",
+        "created_at": "2026-03-19"
+    },
+    "deux": {
+        "password": "$2y$12$a\/oFVnApccH8mDdUaAmIuuuOLgTPQYNBQ98xYrNi5vYMk1dI4.Nxa",
+        "email": "deux@gmail.com",
+        "created_at": "2026-03-19"
+    },
+    "trois": {
+        "password": "$2y$12$7XcAcq3HkECRjYBk6PULwO2PKoB99dYkc.eShpNqbzulQ056qfOTK",
+        "email": "trois@gmail.com",
+        "created_at": "2026-03-19"
+    },
+    "quatre": {
+        "password": "$2y$12$MPgNS63QH7b2oYYHxm5T8e2buhe\/NIsoV25uu4bgTTj4lAt.RoO.i",
+        "email": "quatre@gmail.com",
+        "created_at": "2026-03-19"
     }
 }
