@@ -220,7 +220,7 @@ body {
 
 /* ── Responsive tablette (≤ 900px) ── */
 @media (max-width: 900px) {
-    :root { --card-w: 64px; --card-h: 92px; }
+    :root { --card-w: 64px; --card-h: 64px; }
     body { grid-template-columns: 1fr; grid-template-rows: 48px 1fr 200px; }
     #chat { border-left: none; border-top: 1px solid #ccc; grid-row: 3; }
     #topbar { grid-column: 1; }
@@ -228,8 +228,24 @@ body {
 
 /* ── Responsive mobile (≤ 600px) ── */
 @media (max-width: 600px) {
-    :root { --card-w: 50px; --card-h: 72px; }
+    :root { --card-w: 50px; --card-h: 50px; }
     body { grid-template-rows: 40px 1fr 180px; }
     #topbar { padding: 0 10px; }
     .carte-joueur .pseudo { font-size: 8px; }
+}
+
+/* ── Animation distribution ──────────────────────────────── */
+@keyframes carteDistribution {
+    from {
+        transform: translate(calc(-50% - var(--dx)), calc(-50% - var(--dy)));
+        opacity: 0;
+    }
+    to {
+        transform: translate(-50%, -50%);
+        opacity: 1;
+    }
+}
+
+.carte-joueur.distribution {
+    animation: carteDistribution 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }

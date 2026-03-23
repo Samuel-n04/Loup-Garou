@@ -1,8 +1,4 @@
 <?php
-// ============================================================
-//  creategame.php — Crée une nouvelle partie
-// ============================================================
-
 session_start();
 header("Content-Type: application/json");
 
@@ -13,37 +9,37 @@ if (!$pseudo) {
     exit;
 }
 
-$fichierPartie = "../data/partie.json";
-$fichierLock   = "../data/partie.lock";
-
-// Vérifier qu'il n'y a pas déjà une partie en cours
-if (file_exists($fichierPartie)) {
-    $etatExistant = json_decode(file_get_contents($fichierPartie), true);
-    if ($etatExistant && $etatExistant["phase"] !== "fin") {
-        http_response_code(409);
-        echo json_encode(["erreur" => "Une partie est déjà en cours."]);
-        exit;
+// ── Vérifier qu'il n'a pas déjà une partie active ─────────
+$indexFichier = "../data/parties.json";
+if (file_exists($indexFichier)) {
+    $index = json_decode(file_get_contents($indexFichier), true) ?? [];
+    foreach ($index as $infos) {
+        if ($infos["hote"] === $pseudo && $infos["phase"] !== "fin") {
+            http_response_code(409);
+            echo json_encode(["erreur" => "Tu as déjà une partie en cours.", "code" => $infos["code"]]);
+            exit;
+        }
     }
 }
 
-$body = json_decode(file_get_contents("php://input"), true) ?? [];
+$body        = json_decode(file_get_contents("php://input"), true) ?? [];
+$estPublique = (bool) ($body["public"] ?? true);
+$joueurMax   = max(4, min(20, intval($body["joueurMax"] ?? 8)));
 
-// ── Rôles actifs (par défaut tous activés) ─────────────────
 $rolesDisponibles = ["voyante", "sorciere", "chasseur", "cupidon", "petite-fille"];
-$rolesActifs = $body["roles"] ?? $rolesDisponibles;
+$rolesActifs      = array_values(array_intersect(
+    $body["roles"] ?? $rolesDisponibles,
+    $rolesDisponibles
+));
 
-// Garder uniquement les rôles valides
-$rolesActifs = array_values(array_intersect($rolesActifs, $rolesDisponibles));
+$code = genererCode();
 
-// ── Nombre max de joueurs (4 à 20) ─────────────────────────
-$joueurMax = intval($body["joueurMax"] ?? 20);
-$joueurMax = max(4, min(20, $joueurMax));
-
-// ── Créer l'état initial ───────────────────────────────────
 $etat = [
+    "code"            => $code,
     "phase"           => "attente",
     "tour"            => 0,
     "hote"            => $pseudo,
+    "public"          => $estPublique,
     "joueurMax"       => $joueurMax,
     "rolesActifs"     => $rolesActifs,
     "joueurs"         => [[
@@ -66,13 +62,47 @@ $etat = [
     "messages"        => [],
 ];
 
-// Vérouiller avant écriture
-$lock = fopen($fichierLock, "w");
+$fichierPartie = "../data/partie_$code.json";
+$lockPartie    = "../data/partie_$code.lock";
+
+$lock = fopen($lockPartie, "w");
 flock($lock, LOCK_EX);
-
 file_put_contents($fichierPartie, json_encode($etat, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-
 flock($lock, LOCK_UN);
 fclose($lock);
 
-echo json_encode(["ok" => true, "hote" => $pseudo, "joueurMax" => $joueurMax, "rolesActifs" => $rolesActifs]);
+mettreAJourIndex($code, [
+    "code"      => $code,
+    "hote"      => $pseudo,
+    "public"    => $estPublique,
+    "phase"     => "attente",
+    "nbJoueurs" => 1,
+    "joueurMax" => $joueurMax,
+    "createdAt" => time(),
+]);
+
+echo json_encode(["ok" => true, "code" => $code, "public" => $estPublique]);
+
+function genererCode(): string {
+    $chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    do {
+        $code = "";
+        for ($i = 0; $i < 6; $i++) {
+            $code .= $chars[random_int(0, strlen($chars) - 1)];
+        }
+    } while (file_exists("../data/partie_$code.json"));
+    return $code;
+}
+
+function mettreAJourIndex(string $code, array $infos): void {
+    $fichier = "../data/parties.json";
+    $lock    = fopen("../data/parties.lock", "w");
+    flock($lock, LOCK_EX);
+    $index = file_exists($fichier)
+        ? json_decode(file_get_contents($fichier), true) ?? []
+        : [];
+    $index[$code] = $infos;
+    file_put_contents($fichier, json_encode($index, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    flock($lock, LOCK_UN);
+    fclose($lock);
+}

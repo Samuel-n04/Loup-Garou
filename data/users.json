@@ -73,5 +73,10 @@
         "password": "$2y$12$MPgNS63QH7b2oYYHxm5T8e2buhe\/NIsoV25uu4bgTTj4lAt.RoO.i",
         "email": "quatre@gmail.com",
         "created_at": "2026-03-19"
+    },
+    "cinq": {
+        "password": "$2y$12$AoDwfa\/Cp7ovvNsCcYQeFO1SvbI4H3j2qpLGBlqbeGnOjuoee3Ipy",
+        "email": "cinq@gmail.com",
+        "created_at": "2026-03-21"
     }
 }

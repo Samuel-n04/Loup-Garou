@@ -15,6 +15,7 @@ if (!$idJoueur) {
 
 $body   = json_decode(file_get_contents("php://input"), true);
 $action = $body["action"] ?? null;
+$code   = trim($body["code"] ?? "");
 
 if (!$action) {
     http_response_code(400);
@@ -22,24 +23,31 @@ if (!$action) {
     exit;
 }
 
-// Verrou fichier pour éviter les écritures simultanées
-$lock = fopen("../data/partie.lock", "w");
+if (!$code || !preg_match('/^[A-Z0-9]{6}$/', $code)) {
+    http_response_code(400);
+    echo json_encode(["erreur" => "Code de partie invalide"]);
+    exit;
+}
+
+$fichierPartie = "../data/partie_$code.json";
+$fichierLock   = "../data/partie_$code.lock";
+
+$lock = fopen($fichierLock, "w");
 flock($lock, LOCK_EX);
 
-$etat = lireJSON("../data/partie.json");
+$etat = lireJSON($fichierPartie);
 
 if (!$etat) {
     flock($lock, LOCK_UN);
     fclose($lock);
     http_response_code(404);
-    echo json_encode(["erreur" => "Aucune partie en cours. Créez une partie d'abord."]);
+    echo json_encode(["erreur" => "Partie introuvable."]);
     exit;
 }
 $erreur = null;
 
 switch ($action) {
 
-    // ── Lobby ───────────────────────────────────────────────
     case "rejoindre":
         if (trouverDans($etat["joueurs"], fn($j) => $j["id"] === $idJoueur)) {
             $erreur = "Joueur déjà inscrit";
@@ -57,7 +65,6 @@ switch ($action) {
         ];
         break;
 
-    // ── Démarrage (hôte uniquement) ─────────────────────────
     case "demarrer":
         if ($etat["hote"] !== $idJoueur) { $erreur = "Non autorisé"; break; }
         if (count($etat["joueurs"]) < 4)  { $erreur = "Minimum 4 joueurs"; break; }
@@ -66,7 +73,6 @@ switch ($action) {
         $etat["phase"] = "distribution";
         break;
 
-    // ── Joueur prêt après avoir vu son rôle ────────────────
     case "pret":
         $etat["prets"][$idJoueur] = true;
         if (count($etat["prets"]) >= count($etat["joueurs"])) {
@@ -75,7 +81,6 @@ switch ($action) {
         }
         break;
 
-    // ── Cupidon ─────────────────────────────────────────────
     case "cupidon":
         if ($etat["phase"] !== "nuit-cupidon") { $erreur = "Mauvaise phase"; break; }
         $joueur = findJoueur($etat, $idJoueur);
@@ -84,7 +89,6 @@ switch ($action) {
         $etat["phase"] = "nuit-voyante";
         break;
 
-    // ── Voyante ─────────────────────────────────────────────
     case "voyante":
         if ($etat["phase"] !== "nuit-voyante") { $erreur = "Mauvaise phase"; break; }
         $joueur = findJoueur($etat, $idJoueur);
@@ -94,7 +98,6 @@ switch ($action) {
         $etat["phase"] = "nuit-loups";
         break;
 
-    // ── Loups-Garous ────────────────────────────────────────
     case "loupVote":
         if ($etat["phase"] !== "nuit-loups") { $erreur = "Mauvaise phase"; break; }
         $joueur = findJoueur($etat, $idJoueur);
@@ -109,12 +112,10 @@ switch ($action) {
         }
         break;
 
-    // ── Sorcière ────────────────────────────────────────────
     case "sorciere":
         if ($etat["phase"] !== "nuit-sorciere") { $erreur = "Mauvaise phase"; break; }
         $joueur = findJoueur($etat, $idJoueur);
         if ($joueur["role"] !== "sorciere")     { $erreur = "Non autorisé"; break; }
-
         if (!empty($body["utiliserVie"]) && $joueur["potionVie"] && $etat["victime"]) {
             $victime = &findJoueurRef($etat, $etat["victime"]);
             $victime["vivant"] = true;
@@ -132,13 +133,11 @@ switch ($action) {
         $etat = finNuit($etat);
         break;
 
-    // ── Fin de nuit sans sorcière ───────────────────────────
     case "finNuit":
         if ($etat["phase"] !== "fin-nuit") { $erreur = "Mauvaise phase"; break; }
         $etat = finNuit($etat);
         break;
 
-    // ── Démarrer le vote (hôte) ─────────────────────────────
     case "demarrerVote":
         if ($etat["hote"] !== $idJoueur) { $erreur = "Non autorisé"; break; }
         if ($etat["phase"] !== "jour")   { $erreur = "Mauvaise phase"; break; }
@@ -146,7 +145,6 @@ switch ($action) {
         $etat["phase"]     = "vote";
         break;
 
-    // ── Vote du jour ────────────────────────────────────────
     case "vote":
         if ($etat["phase"] !== "vote") { $erreur = "Mauvaise phase"; break; }
         $joueur = findJoueur($etat, $idJoueur);
@@ -158,7 +156,6 @@ switch ($action) {
         }
         break;
 
-    // ── Chasseur ────────────────────────────────────────────
     case "chasseurTire":
         if ($etat["phase"] !== "chasseur") { $erreur = "Mauvaise phase"; break; }
         $joueur = findJoueur($etat, $idJoueur);
@@ -170,20 +167,24 @@ switch ($action) {
         $etat = apresElimination($etat);
         break;
 
-    // ── Quitter la partie ───────────────────────────────────
     case "quitter":
         $estHote = $etat["hote"] === $idJoueur;
+        $enCours = $etat["phase"] !== "attente";
         $etat["joueurs"] = array_values(array_filter(
             $etat["joueurs"],
             fn($j) => $j["id"] !== $idJoueur
         ));
-        // Si c'était l'hôte et qu'il reste des joueurs → transférer
-        if ($estHote && count($etat["joueurs"]) > 0) {
+        if ($estHote && $enCours) {
+            $etat["phase"]     = "fin";
+            $etat["vainqueur"] = "annule";
+        } elseif ($estHote && count($etat["joueurs"]) > 0) {
             $etat["hote"] = $etat["joueurs"][0]["id"];
+        } elseif ($estHote && count($etat["joueurs"]) === 0) {
+            $etat["phase"]     = "fin";
+            $etat["vainqueur"] = "annule";
         }
         break;
 
-    // ── Chat ────────────────────────────────────────────────
     case "chat":
         $texte = trim($body["texte"] ?? "");
         if (!$texte) { $erreur = "Message vide"; break; }
@@ -203,7 +204,8 @@ switch ($action) {
 }
 
 if (!$erreur) {
-    ecrireJSON("../data/partie.json", $etat);
+    ecrireJSON($fichierPartie, $etat);
+    mettreAJourIndex($code, $etat["phase"], count($etat["joueurs"]));
 }
 
 flock($lock, LOCK_UN);
@@ -325,9 +327,8 @@ function verifierFin(array $etat): ?string {
 }
 
 // ============================================================
-//  UTILITAIRES FICHIERS
+//  UTILITAIRES
 // ============================================================
-
 function lireJSON(string $chemin): ?array {
     if (!file_exists($chemin)) return null;
     return json_decode(file_get_contents($chemin), true);
@@ -352,4 +353,29 @@ function &findJoueurRef(array &$etat, string $id): mixed {
         if ($j["id"] === $id) return $j;
     }
     throw new Exception("Joueur $id introuvable");
+}
+
+function mettreAJourIndex(string $code, string $phase, int $nbJoueurs): void {
+    $fichier = "../data/parties.json";
+    $lock    = fopen("../data/parties.lock", "w");
+    flock($lock, LOCK_EX);
+
+    $index = file_exists($fichier)
+        ? json_decode(file_get_contents($fichier), true) ?? []
+        : [];
+
+    if ($phase === "fin") {
+        unset($index[$code]);
+        $fichierPartie = "../data/partie_$code.json";
+        $fichierLock   = "../data/partie_$code.lock";
+        if (file_exists($fichierPartie)) unlink($fichierPartie);
+        if (file_exists($fichierLock))   unlink($fichierLock);
+    } elseif (isset($index[$code])) {
+        $index[$code]["phase"]     = $phase;
+        $index[$code]["nbJoueurs"] = $nbJoueurs;
+    }
+
+    file_put_contents($fichier, json_encode($index, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    flock($lock, LOCK_UN);
+    fclose($lock);
 }

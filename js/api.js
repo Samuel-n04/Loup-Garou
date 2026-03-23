@@ -1,28 +1,38 @@
 // ============================================================
 //  api.js — Couche réseau côté client
-//  L'identité du joueur est gérée par la session PHP (côté serveur)
-//  Pas d'idJoueur côté JS — tout passe par le cookie de session
+//  Le code de partie est stocké en sessionStorage
 // ============================================================
 
 let _phaseActuelle = null;
-let _pollingTimer = null;
-let _dernierTs    = 0;
+let _pollingTimer  = null;
+let _dernierTs     = 0;
 
-// ── Callbacks à brancher depuis ton code UI ────────────────
+// ── Code de partie ────────────────────────────────────────
+export function setCode(code) {
+    sessionStorage.setItem("codePartie", code);
+}
+
+export function getCode() {
+    return sessionStorage.getItem("codePartie") ?? "";
+}
+
+export function clearCode() {
+    sessionStorage.removeItem("codePartie");
+}
+
+// ── Callbacks ─────────────────────────────────────────────
 export const on = {
-    phaseChange: null, // (etat) => {}
-    fin: null, // (etat) => {}
+    phaseChange: null,
+    fin:         null,
 };
 
-// ============================================================
-//  POLLING — appel toutes les secondes
-// ============================================================
-export function demarrerPolling(intervalMs = 1000) {
+// ── Polling ───────────────────────────────────────────────
+export function demarrerPolling(intervalMs = 1500) {
     if (_pollingTimer) return;
     _pollingTimer = setInterval(async () => {
         try {
             const etat = await getEtat();
-            _traiterEtat(etat);
+            if (etat) _traiterEtat(etat);
         } catch (e) {
             console.error("[polling] erreur :", e);
         }
@@ -35,11 +45,10 @@ export function arreterPolling() {
 }
 
 async function getEtat() {
-    const res = await fetch(`php/etat.php?depuis=${_dernierTs}`);
-    if (res.status === 401) {
-        location.href = "login.html";
-        return;
-    }
+    const code = getCode();
+    if (!code) return null;
+    const res = await fetch(`php/etat.php?code=${code}&depuis=${_dernierTs}`);
+    if (res.status === 401) { location.href = "login.html"; return null; }
     if (!res.ok) throw new Error(await res.text());
     return res.json();
 }
@@ -56,62 +65,54 @@ function _traiterEtat(etat) {
     }
 }
 
-// ============================================================
-//  ACTIONS — envoi au serveur (POST JSON)
-//  Pas besoin d'envoyer l'idJoueur, la session PHP s'en charge
-// ============================================================
+// ── Actions ───────────────────────────────────────────────
 async function action(data) {
     const res = await fetch("php/action.php", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body:    JSON.stringify({ ...data, code: getCode() }),
     });
-    if (res.status === 401) {
-        location.href = "login.html";
-        return;
-    }
+    if (res.status === 401) { location.href = "login.html"; return; }
     const json = await res.json();
     if (!res.ok) throw new Error(json.erreur ?? "Erreur serveur");
     return json;
 }
 
-// ── API publique ───────────────────────────────────────────
-export const rejoindre = () => action({ action: "rejoindre" });
-export const demarrer = () => action({ action: "demarrer" });
-export const pret = () => action({ action: "pret" });
-export const cupidon = (idA, idB) => action({ action: "cupidon", idA, idB });
-export const voyante = (idCible) => action({ action: "voyante", idCible });
-export const loupVote = (idCible) => action({ action: "loupVote", idCible });
-export const sorciere = (utiliserVie, idCibleMort = null) =>
-    action({ action: "sorciere", utiliserVie, idCibleMort });
-export const demarrerVote = () => action({ action: "demarrerVote" });
-export const vote = (idCible) => action({ action: "vote", idCible });
-export const chasseurTire = (idCible) =>
-    action({ action: "chasseurTire", idCible });
-export const finNuit = () => action({ action: "finNuit" });
-
-// ── Endpoints séparés ─────────────────────────────────────
 async function requete(url, data = null) {
     const options = data
-        ? {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(data),
-          }
+        ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }
         : { method: "GET" };
     const res = await fetch(url, options);
-    if (res.status === 401) {
-        location.href = "login.html";
-        return;
-    }
+    if (res.status === 401) { location.href = "login.html"; return; }
     const json = await res.json();
     if (!res.ok) throw new Error(json.erreur ?? "Erreur serveur");
     return json;
 }
 
-export const creerPartie = (roles, joueurMax) =>
-    requete("php/creategame.php", { roles, joueurMax });
-export const reset = () => requete("php/reset.php", {});
+// ── API publique ──────────────────────────────────────────
+export const rejoindre    = ()                                => action({ action: "rejoindre" });
+export const demarrer     = ()                                => action({ action: "demarrer" });
+export const pret         = ()                                => action({ action: "pret" });
+export const cupidon      = (idA, idB)                        => action({ action: "cupidon", idA, idB });
+export const voyante      = (idCible)                         => action({ action: "voyante", idCible });
+export const loupVote     = (idCible)                         => action({ action: "loupVote", idCible });
+export const sorciere     = (utiliserVie, idCibleMort = null) => action({ action: "sorciere", utiliserVie, idCibleMort });
+export const demarrerVote = ()                                => action({ action: "demarrerVote" });
+export const vote         = (idCible)                         => action({ action: "vote", idCible });
+export const chasseurTire = (idCible)                         => action({ action: "chasseurTire", idCible });
+export const finNuit      = ()                                => action({ action: "finNuit" });
+export const chat         = (texte)                           => action({ action: "chat", texte });
+export const quitter      = ()                                => action({ action: "quitter" });
 
-export const chat = (texte) => action({ action: "chat", texte });
-export const quitter = () => action({ action: "quitter" });
+// ── Endpoints séparés ─────────────────────────────────────
+export const creerPartie  = (roles, joueurMax, estPublique) =>
+    requete("php/creategame.php", { roles, joueurMax, public: estPublique });
+
+export const reset = (codeSpecifique = null) =>
+    requete("php/reset.php", { code: codeSpecifique || getCode() });
+
+export const listerParties = () =>
+    requete("php/parties.php");
+
+export const rejoindreParCode = (code) =>
+    requete("php/action.php", { action: "rejoindre", code });

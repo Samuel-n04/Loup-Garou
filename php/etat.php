@@ -1,9 +1,4 @@
 <?php
-// ============================================================
-//  etat.php — Appelé toutes les secondes par le client (polling)
-//  Retourne l'état filtré selon le joueur connecté
-// ============================================================
-
 session_start();
 header("Content-Type: application/json");
 header("Cache-Control: no-cache");
@@ -15,30 +10,34 @@ if (!$idJoueur) {
     exit;
 }
 
-$etat = lireJSON("../data/partie.json");
-if (!$etat) {
-    echo json_encode(["phase" => "attente"]);
+$code = trim($_GET["code"] ?? "");
+if (!$code || !preg_match('/^[A-Z0-9]{6}$/', $code)) {
+    http_response_code(400);
+    echo json_encode(["erreur" => "Code de partie invalide"]);
     exit;
 }
 
-// ── Trouver le joueur connecté ─────────────────────────────
+$etat = lireJSON("../data/partie_$code.json");
+if (!$etat) {
+    http_response_code(404);
+    echo json_encode(["erreur" => "Partie introuvable"]);
+    exit;
+}
+
 $joueur = trouverDans($etat["joueurs"], fn($j) => $j["id"] === $idJoueur);
 
-// ── Réponse de base (publique) ─────────────────────────────
 $reponse = [
-    "phase"   => $etat["phase"],
-    "tour"    => $etat["tour"],
+    "phase"     => $etat["phase"],
+    "tour"      => $etat["tour"],
     "estHote"   => $etat["hote"] === $idJoueur,
     "monPseudo" => $idJoueur,
-    "monPseudo" => $idJoueur,
-    "joueurs" => array_map(fn($j) => [
+    "joueurs"   => array_map(fn($j) => [
         "id"     => $j["id"],
         "nom"    => $j["nom"],
         "vivant" => $j["vivant"],
     ], $etat["joueurs"]),
 ];
 
-// ── Infos privées du joueur connecté ──────────────────────
 if ($joueur) {
     $reponse["monRole"]  = $joueur["role"];
     $reponse["vivant"]   = $joueur["vivant"];
@@ -53,27 +52,17 @@ if ($joueur) {
     }
 }
 
-// ── Victime de la nuit (sorcière uniquement) ───────────────
-if (
-    $etat["phase"] === "nuit-sorciere" &&
-    $joueur && $joueur["role"] === "sorciere" &&
-    $etat["victime"]
-) {
+if ($etat["phase"] === "nuit-sorciere" && $joueur && $joueur["role"] === "sorciere" && $etat["victime"]) {
     $reponse["victime"] = $etat["victime"];
 }
 
-// ── Résultat voyante (voyante uniquement) ──────────────────
-if (
-    $etat["resultatVoyante"] &&
-    $joueur && $joueur["role"] === "voyante"
-) {
+if ($etat["resultatVoyante"] && $joueur && $joueur["role"] === "voyante") {
     $reponse["resultatVoyante"] = $etat["resultatVoyante"];
 }
 
-// ── Votes en cours (pour affichage temps réel) ─────────────
 if ($etat["phase"] === "vote") {
-    $reponse["nbVotes"]    = count($etat["votesJour"]);
-    $reponse["nbVivants"]  = count(array_filter($etat["joueurs"], fn($j) => $j["vivant"]));
+    $reponse["nbVotes"]   = count($etat["votesJour"]);
+    $reponse["nbVivants"] = count(array_filter($etat["joueurs"], fn($j) => $j["vivant"]));
 }
 
 // ── Messages chat ──────────────────────────────────────────
@@ -83,7 +72,6 @@ $reponse["messages"] = array_values(array_filter(
     fn($m) => $m["ts"] > $depuis
 ));
 
-// ── Fin de partie : révéler tous les rôles ─────────────────
 if ($etat["phase"] === "fin") {
     $reponse["vainqueur"] = $etat["vainqueur"];
     $reponse["joueurs"]   = array_map(fn($j) => [
@@ -96,9 +84,6 @@ if ($etat["phase"] === "fin") {
 
 echo json_encode($reponse);
 
-// ============================================================
-//  UTILITAIRES
-// ============================================================
 function lireJSON(string $chemin): ?array {
     if (!file_exists($chemin)) return null;
     return json_decode(file_get_contents($chemin), true);
