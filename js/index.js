@@ -1,7 +1,5 @@
 import * as API from "./api.js";
 
-
-
 // ── Déconnexion ───────────────────────────────────────────
 document
     .getElementById("btnDeconnexion")
@@ -64,29 +62,30 @@ async function verifierPartieExistante(code) {
 
 // ── Afficher le formulaire de création ────────────────────
 function afficherFormulaire() {
-    document.getElementById("section-creer").hidden   = false;
+    document.getElementById("section-creer").hidden = false;
     document.getElementById("section-parties").hidden = false;
-    document.getElementById("section-partie").hidden  = true;
+    document.getElementById("section-partie").hidden = true;
 }
 
 // ── Afficher le lobby d'une partie ────────────────────────
 function afficherLobbyPartie(etat) {
-    document.getElementById("section-creer").hidden   = true;
+    document.getElementById("section-creer").hidden = true;
     document.getElementById("section-parties").hidden = true;
-    document.getElementById("section-partie").hidden  = false;
+    document.getElementById("section-partie").hidden = false;
 
     const code = API.getCode();
     document.getElementById("code-partie").textContent = code;
-    document.getElementById("nb-joueurs").textContent  = etat.joueurs.length;
-    document.getElementById("info-hote").textContent   = `Hôte : ${etat.joueurs[0]?.nom ?? ""}`;
+    document.getElementById("nb-joueurs").textContent = etat.joueurs.length;
+    document.getElementById("info-hote").textContent =
+        `Hôte : ${etat.joueurs[0]?.nom ?? ""}`;
 
     const liste = document.getElementById("liste-joueurs");
-    liste.innerHTML = etat.joueurs.map(j => `<li>${j.nom}</li>`).join("");
+    liste.innerHTML = etat.joueurs.map((j) => `<li>${j.nom}</li>`).join("");
 
-    const estDansPartie = etat.joueurs.some(j => j.id === etat.monPseudo);
+    const estDansPartie = etat.joueurs.some((j) => j.id === etat.monPseudo);
 
-    document.getElementById("actions-hote").hidden    = true;
-    document.getElementById("actions-joueur").hidden  = true;
+    document.getElementById("actions-hote").hidden = true;
+    document.getElementById("actions-joueur").hidden = true;
     document.getElementById("actions-quitter").hidden = true;
 
     if (etat.estHote) {
@@ -118,28 +117,31 @@ function afficherPartiesPubliques(parties) {
     // Récupère ton pseudo affiché en haut de la page
     const monPseudo = document.querySelector("div > span").textContent.trim();
 
-    liste.innerHTML = parties.map(p => {
-        // Affiche le bouton uniquement si l'hôte correspond à ton pseudo
-        const btnAnnuler = (p.hote === monPseudo) 
-            ? `<button class="btn-reset-public" data-code="${p.code}">Annuler</button>` 
-            : "";
+    liste.innerHTML = parties
+        .map((p) => {
+            // Affiche le bouton uniquement si l'hôte correspond à ton pseudo
+            const btnAnnuler =
+                p.hote === monPseudo
+                    ? `<button class="btn-reset-public" data-code="${p.code}">Annuler</button>`
+                    : "";
 
-        return `
+            return `
 <li>
     Hôte : ${p.hote} — ${p.nbJoueurs}/${p.joueurMax} joueurs
     <button class="btn-rejoindre-public" data-code="${p.code}">Rejoindre</button>
     ${btnAnnuler}
 </li>
 `;
-    }).join("");
+        })
+        .join("");
 
     // Action : Rejoindre
-    document.querySelectorAll(".btn-rejoindre-public").forEach(btn => {
+    document.querySelectorAll(".btn-rejoindre-public").forEach((btn) => {
         btn.addEventListener("click", () => rejoindrePartie(btn.dataset.code));
     });
 
     // Action : Annuler (réservé à l'hôte)
-    document.querySelectorAll(".btn-reset-public").forEach(btn => {
+    document.querySelectorAll(".btn-reset-public").forEach((btn) => {
         btn.addEventListener("click", async () => {
             if (!confirm("Annuler votre partie ?")) return;
             try {
@@ -170,10 +172,11 @@ async function rejoindrePartie(code) {
 
 // ── Créer une partie ──────────────────────────────────────
 document.getElementById("btnCreer").addEventListener("click", async () => {
-    const roles = [...document.querySelectorAll("input[name='role']:checked")]
-        .map(cb => cb.value);
-    const joueurMax    = parseInt(document.getElementById("joueurMax").value);
-    const estPublique  = document.getElementById("checkPublique").checked;
+    const roles = [
+        ...document.querySelectorAll("input[name='role']:checked"),
+    ].map((cb) => cb.value);
+    const joueurMax = parseInt(document.getElementById("joueurMax").value);
+    const estPublique = document.getElementById("checkPublique").checked;
 
     try {
         const res = await API.creerPartie(roles, joueurMax, estPublique);
@@ -187,18 +190,23 @@ document.getElementById("btnCreer").addEventListener("click", async () => {
 });
 
 // ── Rejoindre par code ────────────────────────────────────
-document.getElementById("btnRejoindreCode").addEventListener("click", async () => {
-    const code = document.getElementById("inputCode").value.trim().toUpperCase();
-    if (!code) return;
-    await rejoindrePartie(code);
-});
+document
+    .getElementById("btnRejoindreCode")
+    .addEventListener("click", async () => {
+        const code = document
+            .getElementById("inputCode")
+            .value.trim()
+            .toUpperCase();
+        if (!code) return;
+        await rejoindrePartie(code);
+    });
 
 // ── Rejoindre (déjà dans le lobby) ───────────────────────
 document.getElementById("btnRejoindre").addEventListener("click", async () => {
     try {
         await API.rejoindre();
         document.getElementById("erreur-partie").textContent = "";
-        document.getElementById("actions-joueur").hidden  = true;
+        document.getElementById("actions-joueur").hidden = true;
         document.getElementById("actions-quitter").hidden = false;
     } catch (e) {
         document.getElementById("erreur-partie").textContent = e.message;
@@ -230,18 +238,20 @@ document.getElementById("btnReset").addEventListener("click", async () => {
 });
 
 // ── Quitter (joueur) ──────────────────────────────────────
-document.getElementById("btnQuitterLobby").addEventListener("click", async () => {
-    if (!confirm("Quitter la partie ?")) return;
-    try {
-        await API.quitter();
-        API.clearCode();
-        API.arreterPolling();
-        afficherFormulaire();
-        chargerPartiesPubliques();
-    } catch (e) {
-        document.getElementById("erreur-partie").textContent = e.message;
-    }
-});
+document
+    .getElementById("btnQuitterLobby")
+    .addEventListener("click", async () => {
+        if (!confirm("Quitter la partie ?")) return;
+        try {
+            await API.quitter();
+            API.clearCode();
+            API.arreterPolling();
+            afficherFormulaire();
+            chargerPartiesPubliques();
+        } catch (e) {
+            document.getElementById("erreur-partie").textContent = e.message;
+        }
+    });
 
 // ── Quitter le lobby ──────────────────────────────────────
 document.getElementById("btnQuitter").addEventListener("click", () => {

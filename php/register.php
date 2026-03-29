@@ -1,4 +1,5 @@
 <?php
+
 session_start();
 header('Content-Type: application/json');
 
@@ -18,7 +19,9 @@ if (file_exists('../data/users.json')) {
     $users = [];
 }
 
-if (!is_array($users)) $users = [];
+if (!is_array($users)) {
+    $users = [];
+}
 
 if (isset($users[$pseudo])) {
     echo json_encode(['error' => 'pseudo existant']);

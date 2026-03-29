@@ -1,4 +1,5 @@
 <?php
+
 session_start();
 header("Content-Type: application/json");
 
@@ -32,8 +33,12 @@ if (file_exists($fichier)) {
 }
 
 // Supprimer les fichiers de la partie
-if (file_exists($fichier)) unlink($fichier);
-if (file_exists($lock))    unlink($lock);
+if (file_exists($fichier)) {
+    unlink($fichier);
+}
+if (file_exists($lock)) {
+    unlink($lock);
+}
 
 // Retirer de l'index
 $indexFichier = "../data/parties.json";

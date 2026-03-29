@@ -1,4 +1,5 @@
 <?php
+
 session_start();
 header('Content-Type: application/json');
 
@@ -17,7 +18,9 @@ if (file_exists('../data/users.json')) {
     $users = [];
 }
 
-if (!is_array($users)) $users = [];
+if (!is_array($users)) {
+    $users = [];
+}
 
 $pseudo = null;
 foreach ($users as $p => $infos) {

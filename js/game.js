@@ -6,16 +6,18 @@ if (!API.getCode()) {
 }
 
 // ── État local ────────────────────────────────────────────
-let etat              = null;
-let monRole           = null;
+let etat = null;
+let monRole = null;
 let cibleSelectionnee = null;
-let ciblesAmants      = [];
+let ciblesAmants = [];
 let modeSelection = "normal"; // normal | poison | cupidon
-let _dernierTs        = 0;
+let _lastNarratedPhase = null;
+let _lastVoyanteResult = null;
+let _lastSorciereTour = -1;
 
 // ── Positions en cercle ───────────────────────────────────
 function positionCercle(index, total, cx, cy, rx, ry) {
-    const angle = (270 + (index / total) * 360) * (Math.PI / 180);
+    const angle = (90 + (index / total) * 360) * (Math.PI / 180);
     return {
         x: cx + rx * Math.cos(angle),
         y: cy + ry * Math.sin(angle),
@@ -32,7 +34,7 @@ function rendreCartes(joueurs) {
     const rx = Math.min(cx, cy) * 0.55;
     const ry = Math.min(cx, cy) * 0.48;
 
-    const moiIndex = joueurs.findIndex(j => j.id === etat.monPseudo);
+    const moiIndex = joueurs.findIndex((j) => j.id === etat.monPseudo);
     if (moiIndex === -1) return;
 
     const ordonnes = [
@@ -41,7 +43,7 @@ function rendreCartes(joueurs) {
     ];
 
     const cartesExistantes = new Map();
-    document.querySelectorAll(".carte-joueur").forEach(el => {
+    document.querySelectorAll(".carte-joueur").forEach((el) => {
         cartesExistantes.set(el.dataset.id, el);
     });
 
@@ -67,6 +69,12 @@ function rendreCartes(joueurs) {
             div.appendChild(pseudo);
             arene.appendChild(div);
 
+            // -- Animation de distribution --
+            div.style.transition = "none"; // Annuler les transitions pour le positionnement initial
+            div.style.left = cx + "px";
+            div.style.top = cy + "px";
+            div.style.transform = "scale(0)";
+
             // Event listener ajouté UNE SEULE FOIS
             div.addEventListener("click", () => {
                 if (!joueur.vivant || estMoi) return;
@@ -78,9 +86,13 @@ function rendreCartes(joueurs) {
         div.classList.toggle("moi", estMoi);
         div.classList.toggle("mort", !joueur.vivant);
 
-        // 🆕 Position
-        div.style.left = pos.x + "px";
-        div.style.top = pos.y + "px";
+        // 🆕 Position (et animation)
+        requestAnimationFrame(() => {
+            div.style.transition = ""; // Rétablir les transitions CSS
+            div.style.left = pos.x + "px";
+            div.style.top = pos.y + "px";
+            div.style.transform = "scale(1)";
+        });
 
         // 🆕 Image
         const imgDiv = div.querySelector(".carte-img");
@@ -113,7 +125,7 @@ function rendreCartes(joueurs) {
 
     // 🆕 Supprimer les joueurs qui n'existent plus
     cartesExistantes.forEach((div, id) => {
-        if (!joueurs.find(j => j.id === id)) {
+        if (!joueurs.find((j) => j.id === id)) {
             div.remove();
         }
     });
@@ -121,69 +133,71 @@ function rendreCartes(joueurs) {
 
 function roleToSprite(role) {
     const map = {
-        "loup-garou":   "loupGarou.png",
-        "villageois":   "villageois.png",
-        "voyante":      "voyante.png",
-        "cupidon":      "cupidon.png",
-        "chasseur":     "chasseur.png",
-        "sorciere":     "sorciere.png",
+        "loup-garou": "loupGarou.png",
+        villageois: "villageois.png",
+        voyante: "voyante.png",
+        cupidon: "cupidon.png",
+        chasseur: "chasseur.png",
+        sorciere: "sorciere.png",
         "petite-fille": "petiteFille.png",
     };
     return map[role] ?? "backCard.png";
 }
 
 // ── Animation mort (flip comme help.js) ──────────────────
-function flipMort(carteDiv) {
+function flipMort(carteDiv, joueur) {
     const inner = carteDiv.querySelector(".carte-img");
     if (!inner || carteDiv.dataset.flipped === "true") return;
     carteDiv.dataset.flipped = "true";
 
-    // Créer une structure inner pour le flip 3D
+    // Créer une structure front/back pour le flip 3D
     const front = document.createElement("div");
-    front.style.cssText = "position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;";
-    const imgFront = inner.querySelector("img");
-    if (imgFront) front.appendChild(imgFront.cloneNode());
+    front.className = "flip-face flip-front";
+    const imgFront = document.createElement("img");
+    imgFront.src = "sprite/backCard.png";
+    imgFront.alt = "Dos de carte";
+    front.appendChild(imgFront);
 
     const back = document.createElement("div");
-    back.style.cssText = "position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;transform:rotateY(180deg);";
+    back.className = "flip-face flip-back";
     const imgBack = document.createElement("img");
-    imgBack.src = "sprite/backCard.png";
-    imgBack.style.cssText = "width:100%;height:100%;object-fit:cover;image-rendering:pixelated;";
+    imgBack.src = `sprite/${roleToSprite(joueur.role)}`;
+    imgBack.alt = joueur.role;
     back.appendChild(imgBack);
 
-    inner.style.transformStyle = "preserve-3d";
-    inner.style.position = "relative";
+    // Vider l'intérieur de la carte et ajouter les nouvelles faces
     inner.innerHTML = "";
     inner.appendChild(front);
     inner.appendChild(back);
 
-    inner.style.transition = "transform 0.6s cubic-bezier(0.15, 0.85, 0.4, 1)";
-    inner.style.transform = `rotateY(${180 + 720}deg)`;
+    // Appliquer le style pour la 3D
+    inner.style.transformStyle = "preserve-3d";
+    inner.style.position = "relative";
+    
+    // Forcer un reflow pour s'assurer que l'état initial est appliqué
+    void inner.offsetWidth;
 
-    const timeout = setTimeout(() => {
-        inner.style.transition = "none";
-        inner.style.transform = "rotateY(180deg)";
-        carteDiv.classList.add("mort");
-    }, 620);
+    // Lancer l'animation
+    inner.style.transition = "transform 0.8s cubic-bezier(0.2, 1.2, 0.3, 1)";
+    inner.style.transform = "rotateY(180deg)";
 
-    inner.addEventListener("transitionend", function handler() {
-        clearTimeout(timeout);
-        inner.removeEventListener("transitionend", handler);
-        inner.style.transition = "none";
-        inner.style.transform = "rotateY(180deg)";
+    // Ajouter la classe 'mort' après un court délai pour l'effet visuel
+    setTimeout(() => {
         carteDiv.classList.add("mort");
-    });
+    }, 300);
 }
 
 // Suivre les joueurs vivants pour détecter les morts
 let _joueursVivants = {};
 
 function detecterMorts(joueurs) {
-    joueurs.forEach(j => {
+    joueurs.forEach((j) => {
         if (_joueursVivants[j.id] === true && j.vivant === false) {
             // Ce joueur vient de mourir
-            const carteDiv = document.querySelector(`.carte-joueur[data-id="${j.id}"]`);
-            if (carteDiv) flipMort(carteDiv);
+            const carteDiv = document.querySelector(
+                `.carte-joueur[data-id="${j.id}"]`,
+            );
+            if (carteDiv) flipMort(carteDiv, j);
         }
         _joueursVivants[j.id] = j.vivant;
     });
@@ -216,7 +230,9 @@ function selectionnerCible(id, div) {
         modeSelection = "normal";
 
         rendreSelectionnable(false);
-        document.querySelectorAll(".carte-joueur").forEach(c => c.classList.remove("cible-vote"));
+        document
+            .querySelectorAll(".carte-joueur")
+            .forEach((c) => c.classList.remove("cible-vote"));
 
         div.classList.add("cible-vote");
 
@@ -234,15 +250,19 @@ function selectionnerCible(id, div) {
     }
 
     // 🎯 Mode normal
-    document.querySelectorAll(".carte-joueur").forEach(c => c.classList.remove("cible-vote"));
+    document
+        .querySelectorAll(".carte-joueur")
+        .forEach((c) => c.classList.remove("cible-vote"));
 
     cibleSelectionnee = id;
     div.classList.add("cible-vote");
 }
 function rendreSelectionnable(actif) {
-    document.querySelectorAll(".carte-joueur:not(.moi):not(.mort)").forEach(c => {
-        c.classList.toggle("selectionnable", actif);
-    });
+    document
+        .querySelectorAll(".carte-joueur:not(.moi):not(.mort)")
+        .forEach((c) => {
+            c.classList.toggle("selectionnable", actif);
+        });
 }
 
 // ── Narrateur ─────────────────────────────────────────────
@@ -259,7 +279,7 @@ function afficherNarrateur(texte, duree = 5000) {
 // ── Chat ──────────────────────────────────────────────────
 function ajouterMessageChat(auteur, texte, type = "") {
     const zone = document.getElementById("chat-messages");
-    const msg  = document.createElement("div");
+    const msg = document.createElement("div");
     msg.className = "msg " + type;
     msg.innerHTML = `<div class="msg-auteur">${auteur}</div><div class="msg-texte">${texte}</div>`;
     zone.appendChild(msg);
@@ -267,7 +287,7 @@ function ajouterMessageChat(auteur, texte, type = "") {
 }
 
 document.getElementById("chat-send").addEventListener("click", envoyerMessage);
-document.getElementById("chat-input").addEventListener("keydown", e => {
+document.getElementById("chat-input").addEventListener("keydown", (e) => {
     if (e.key === "Enter") envoyerMessage();
 });
 
@@ -275,7 +295,13 @@ async function envoyerMessage() {
     const input = document.getElementById("chat-input");
     const texte = input.value.trim();
     if (!texte) return;
+
     input.value = "";
+
+    if (etat && etat.monPseudo) {
+        ajouterMessageChat(etat.monPseudo, texte, "moi");
+    }
+
     try {
         await API.chat(texte);
     } catch (e) {
@@ -285,21 +311,23 @@ async function envoyerMessage() {
 
 // ── Phase ─────────────────────────────────────────────────
 const MESSAGES_PHASE = {
-    "distribution":  "Les rôles ont été distribués. Chacun découvre sa destinée…",
-    "nuit-cupidon":  "Cupidon se réveille et tend son arc vers deux âmes…",
-    "nuit-voyante":  "La Voyante ouvre les yeux dans la nuit et scrute les ombres…",
-    "nuit-loups":    "Les Loups-Garous se réveillent et choisissent leur proie…",
+    distribution: "Les rôles ont été distribués. Chacun découvre sa destinée…",
+    "nuit-cupidon": "Cupidon se réveille et tend son arc vers deux âmes…",
+    "nuit-voyante":
+        "La Voyante ouvre les yeux dans la nuit et scrute les ombres…",
+    "nuit-loups": "Les Loups-Garous se réveillent et choisissent leur proie…",
     "nuit-sorciere": "La Sorcière consulte ses potions à la lueur de la lune…",
-    "jour":          "L'aube se lève sur le village. Les habitants découvrent les victimes de la nuit…",
-    "vote":          "Le village se réunit. Il est temps de voter !",
-    "chasseur":      "Le Chasseur rend son dernier souffle… mais il peut encore tirer !",
-    "fin":           null,
+    jour: "L'aube se lève sur le village. Les habitants découvrent les victimes de la nuit…",
+    vote: "Le village se réunit. Il est temps de voter !",
+    chasseur:
+        "Le Chasseur rend son dernier souffle… mais il peut encore tirer !",
+    fin: null,
 };
 
 function mettreAJourPhase(nouvelEtat) {
     if (!etat) return;
     const phase = nouvelEtat.phase;
-    const tour  = nouvelEtat.tour ?? 1;
+    const tour = nouvelEtat.tour ?? 1;
 
     const estNuit = phase.startsWith("nuit") || phase === "distribution";
     document.body.className = estNuit ? "nuit" : "jour";
@@ -307,21 +335,27 @@ function mettreAJourPhase(nouvelEtat) {
 
     let label = estNuit ? `Nuit ${tour}` : `Jour ${tour}`;
     if (phase === "vote") label = `Vote — Jour ${tour}`;
-    if (phase === "fin")  label = "Fin de partie";
+    if (phase === "fin") label = "Fin de partie";
     document.getElementById("phase-label").textContent = label;
 
-    const msg = MESSAGES_PHASE[phase];
-    if (msg) afficherNarrateur(msg);
+    if (phase !== _lastNarratedPhase) {
+        const msg = MESSAGES_PHASE[phase];
+        if (msg) {
+            afficherNarrateur(msg);
+        }
+        _lastNarratedPhase = phase;
+    }
 
     rendreActionsZone(nouvelEtat);
     rendrePanneauRole(nouvelEtat);
 
-    const selectionActive = (phase === "vote")
-        || (phase === "nuit-loups"    && monRole === "loup-garou")
-        || (phase === "nuit-voyante"  && monRole === "voyante")
-        || (phase === "nuit-cupidon"  && monRole === "cupidon")
-        || (phase === "chasseur"      && monRole === "chasseur")
-        || (phase === "nuit-sorciere" && monRole === "sorciere");
+    const selectionActive =
+        phase === "vote" ||
+        (phase === "nuit-loups" && monRole === "loup-garou") ||
+        (phase === "nuit-voyante" && monRole === "voyante") ||
+        (phase === "nuit-cupidon" && monRole === "cupidon") ||
+        (phase === "chasseur" && monRole === "chasseur") ||
+        (phase === "nuit-sorciere" && monRole === "sorciere");
     rendreSelectionnable(selectionActive);
 }
 
@@ -331,72 +365,94 @@ function rendreActionsZone(e) {
     zone.innerHTML = "";
 
     if (e.phase === "distribution") {
-        zone.appendChild(creerBouton("J'ai vu mon rôle ✓", async () => {
-            await API.pret();
-        }));
+        zone.appendChild(
+            creerBouton("J'ai vu mon rôle ✓", async () => {
+                await API.pret();
+            }),
+        );
     }
 
     if (e.phase === "nuit-cupidon" && monRole === "cupidon") {
         ciblesAmants = [];
-        zone.appendChild(creerBouton("Lier les amants (0/2)", async () => {
-            if (ciblesAmants.length !== 2) return;
-            await API.cupidon(ciblesAmants[0], ciblesAmants[1]);
-            ciblesAmants = [];
-            document.querySelectorAll(".carte-joueur").forEach(c => c.classList.remove("cible-vote"));
-        }));
+        zone.appendChild(
+            creerBouton("Lier les amants (0/2)", async () => {
+                if (ciblesAmants.length !== 2) return;
+                await API.cupidon(ciblesAmants[0], ciblesAmants[1]);
+                ciblesAmants = [];
+                document
+                    .querySelectorAll(".carte-joueur")
+                    .forEach((c) => c.classList.remove("cible-vote"));
+            }),
+        );
     }
 
     if (e.phase === "nuit-voyante" && monRole === "voyante") {
-        zone.appendChild(creerBouton("Inspecter ce joueur", async () => {
-            if (!cibleSelectionnee) return;
-            try {
-                await API.voyante(cibleSelectionnee);
-            } catch (e) {
-                afficherNarrateur("Erreur voyante");
-            }
-            cibleSelectionnee = null;
-        }));
+        zone.appendChild(
+            creerBouton("Inspecter ce joueur", async () => {
+                if (!cibleSelectionnee) return;
+                try {
+                    await API.voyante(cibleSelectionnee);
+                } catch (e) {
+                    afficherNarrateur("Erreur voyante");
+                }
+                cibleSelectionnee = null;
+            }),
+        );
     }
 
     if (e.phase === "nuit-loups" && monRole === "loup-garou") {
-        zone.appendChild(creerBouton("Confirmer ma cible", async () => {
-            if (!cibleSelectionnee) return;
-            try {
-                await API.loupVote(cibleSelectionnee);
-            } catch (e) {
-                afficherNarrateur("Erreur vote des loups");
-            }
-            cibleSelectionnee = null;
-        }));
+        zone.appendChild(
+            creerBouton("Confirmer ma cible", async () => {
+                if (!cibleSelectionnee) return;
+                try {
+                    await API.loupVote(cibleSelectionnee);
+                } catch (e) {
+                    afficherNarrateur("Erreur vote des loups");
+                }
+                cibleSelectionnee = null;
+            }),
+        );
     }
 
     if (e.phase === "jour" && e.estHote) {
-        zone.appendChild(creerBouton("Lancer le vote", async () => {
-            await API.demarrerVote();
-        }));
+        zone.appendChild(
+            creerBouton("Lancer le vote", async () => {
+                await API.demarrerVote();
+            }),
+        );
     }
 
     if (e.phase === "vote") {
-        zone.appendChild(creerBouton("Confirmer mon vote", async () => {
-            if (!cibleSelectionnee) return;
-            try {
-                await API.vote(cibleSelectionnee);
-            } catch (e) {
-                console.error(e);
-                afficherNarrateur("Erreur réseau pendant le vote");
-            }            cibleSelectionnee = null;
-        }));
+        zone.appendChild(
+            creerBouton("Confirmer mon vote", async () => {
+                if (!cibleSelectionnee) return;
+                try {
+                    await API.vote(cibleSelectionnee);
+                } catch (e) {
+                    console.error(e);
+                    afficherNarrateur("Erreur réseau pendant le vote");
+                }
+                cibleSelectionnee = null;
+            }),
+        );
     }
 
     if (e.phase === "chasseur" && monRole === "chasseur") {
-        zone.appendChild(creerBouton("Tirer sur ce joueur", async () => {
-            if (!cibleSelectionnee) return;
-            try {
-                await API.chasseurTire(cibleSelectionnee);
-            } catch (e) {
-                afficherNarrateur("Erreur tir");
-            }            cibleSelectionnee = null;
-        }, "danger"));
+        zone.appendChild(
+            creerBouton(
+                "Tirer sur ce joueur",
+                async () => {
+                    if (!cibleSelectionnee) return;
+                    try {
+                        await API.chasseurTire(cibleSelectionnee);
+                    } catch (e) {
+                        afficherNarrateur("Erreur tir");
+                    }
+                    cibleSelectionnee = null;
+                },
+                "danger",
+            ),
+        );
     }
 }
 
@@ -405,43 +461,66 @@ function rendrePanneauRole(e) {
     const panneau = document.getElementById("panneau-role");
 
     if (e.resultatVoyante && monRole === "voyante") {
-        afficherPanneau(
-            "Révélation de la Voyante",
-            `Ce joueur est : ${e.resultatVoyante}`,
-            [{ label: "Compris", fn: () => panneau.classList.remove("visible") }]
-        );
+        if (e.resultatVoyante !== _lastVoyanteResult) {
+            _lastVoyanteResult = e.resultatVoyante;
+            afficherPanneau(
+                "Révélation de la Voyante",
+                `Ce joueur est : ${e.resultatVoyante}`,
+                [
+                    {
+                        label: "Compris",
+                        fn: () => panneau.classList.remove("visible"),
+                    },
+                ],
+            );
+        }
         return;
+    } else {
+        _lastVoyanteResult = null;
     }
 
     if (e.phase === "nuit-sorciere" && monRole === "sorciere") {
-        const btns = [];
-        if (e.potionVie && e.victime) {
-            btns.push({ label: `💚 Sauver ${e.victime}`, fn: async () => {
-                try {
-                    await API.sorciere(true, null);
-                } catch (e) {
-                    afficherNarrateur("Erreur potion de vie");
-                }                panneau.classList.remove("visible");
-            }});
+        if (e.tour !== _lastSorciereTour) {
+            _lastSorciereTour = e.tour;
+            const btns = [];
+            if (e.potionVie && e.victime) {
+                btns.push({
+                    label: `💚 Sauver ${e.victime}`,
+                    fn: async () => {
+                        try {
+                            await API.sorciere(true, null);
+                        } catch (e) {
+                            afficherNarrateur("Erreur potion de vie");
+                        }
+                        panneau.classList.remove("visible");
+                    },
+                });
+            }
+            if (e.potionMort) {
+                btns.push({
+                    label: "☠️ Empoisonner…",
+                    fn: () => {
+                        panneau.classList.remove("visible");
+                        modeSelection = "poison";
+                        rendreSelectionnable(true);
+                    },
+                });
+            }
+            btns.push({
+                label: "Passer",
+                fn: async () => {
+                    await API.sorciere(false, null);
+                    panneau.classList.remove("visible");
+                },
+            });
+            const desc = e.victime
+                ? `La victime de cette nuit est : ${e.victime}`
+                : "Personne n'a été attaqué cette nuit.";
+            afficherPanneau("Vos potions, Sorcière", desc, btns);
         }
-        if (e.potionMort) {
-            btns.push({ label: "☠️ Empoisonner…", fn: () => {
-                // Fermer le panneau et passer en mode sélection empoisonnement
-                panneau.classList.remove("visible");
-                modeSelection = "poison";
-                rendreSelectionnable(true);
-                rendreSelectionnable(true);
-            }});
-        }
-        btns.push({ label: "Passer", fn: async () => {
-            await API.sorciere(false, null);
-            panneau.classList.remove("visible");
-        }});
-        const desc = e.victime
-            ? `La victime de cette nuit est : ${e.victime}`
-            : "Personne n'a été attaqué cette nuit.";
-        afficherPanneau("Vos potions, Sorcière", desc, btns);
         return;
+    } else {
+        _lastSorciereTour = -1;
     }
 
     if (e.phase === "nuit-cupidon" && monRole === "cupidon") {
@@ -452,18 +531,23 @@ function rendrePanneauRole(e) {
     if (e.phase === "fin") {
         const camp = {
             villageois: "Les Villageois",
-            loups:      "Les Loups-Garous",
-            amants:     "Les Amants",
-            annule:     "Partie annulée par l'hôte",
+            loups: "Les Loups-Garous",
+            amants: "Les Amants",
+            annule: "Partie annulée par l'hôte",
         };
         afficherPanneau(
             e.vainqueur === "annule" ? "Partie annulée" : "Partie terminée",
             camp[e.vainqueur] ?? e.vainqueur,
-            [{ label: "Retour au lobby", fn: () => {
-                API.clearCode();
-                API.arreterPolling();
-                location.href = "lobby.html";
-            }}]
+            [
+                {
+                    label: "Retour au lobby",
+                    fn: () => {
+                        API.clearCode();
+                        API.arreterPolling();
+                        location.href = "lobby.html";
+                    },
+                },
+            ],
         );
         return;
     }
@@ -473,10 +557,12 @@ function rendrePanneauRole(e) {
 
 function afficherPanneau(titre, desc, btns) {
     document.getElementById("panneau-titre").textContent = titre;
-    document.getElementById("panneau-desc").textContent  = desc;
+    document.getElementById("panneau-desc").textContent = desc;
     const zone = document.getElementById("panneau-btns");
     zone.innerHTML = "";
-    btns.forEach(b => zone.appendChild(creerBouton(b.label, b.fn, b.danger ? "danger" : "")));
+    btns.forEach((b) =>
+        zone.appendChild(creerBouton(b.label, b.fn, b.danger ? "danger" : "")),
+    );
     document.getElementById("panneau-role").classList.add("visible");
 }
 
@@ -505,19 +591,32 @@ document.getElementById("btnQuitter").addEventListener("click", async () => {
 
 // ── Polling ───────────────────────────────────────────────
 API.on.phaseChange = (nouvelEtat) => {
-    etat    = nouvelEtat;
+    etat = nouvelEtat;
     monRole = nouvelEtat.monRole;
 
     if (nouvelEtat.messages?.length) {
-        _dernierTs = nouvelEtat.messages.at(-1).ts;
-        nouvelEtat.messages.forEach(m => {
+        API.setDernierTs(nouvelEtat.messages.at(-1).ts);
+        nouvelEtat.messages.forEach((m) => {
+            if (m.auteur === etat.monPseudo) {
+                const lastMsg = document.querySelector(
+                    "#chat-messages > .msg:last-child",
+                );
+                if (lastMsg && lastMsg.classList.contains("moi")) {
+                    const lastMsgText =
+                        lastMsg.querySelector(".msg-texte").textContent;
+                    if (lastMsgText === m.texte) {
+                        return; // Don't add duplicate of optimistic message
+                    }
+                }
+            }
             const type = m.auteur === etat.monPseudo ? "moi" : "";
             ajouterMessageChat(m.auteur, m.texte, type);
         });
     }
 
-    document.getElementById("mon-role-badge").textContent =
-        monRole ? `Rôle : ${monRole}` : "";
+    document.getElementById("mon-role-badge").textContent = monRole
+        ? `Rôle : ${monRole}`
+        : "";
 
     detecterMorts(nouvelEtat.joueurs);
     rendreCartes(nouvelEtat.joueurs);
@@ -531,7 +630,7 @@ API.on.fin = (nouvelEtat) => {
     mettreAJourPhase(nouvelEtat);
 };
 
-API.demarrerPolling(1500);
+API.demarrerPolling(500);
 
 window.addEventListener("resize", () => {
     if (etat) rendreCartes(etat.joueurs);
