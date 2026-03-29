@@ -1,4 +1,5 @@
 <?php
+
 session_start();
 header("Content-Type: application/json");
 
@@ -83,7 +84,8 @@ mettreAJourIndex($code, [
 
 echo json_encode(["ok" => true, "code" => $code, "public" => $estPublique]);
 
-function genererCode(): string {
+function genererCode(): string
+{
     $chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     do {
         $code = "";
@@ -94,7 +96,8 @@ function genererCode(): string {
     return $code;
 }
 
-function mettreAJourIndex(string $code, array $infos): void {
+function mettreAJourIndex(string $code, array $infos): void
+{
     $fichier = "../data/parties.json";
     $lock    = fopen("../data/parties.lock", "w");
     flock($lock, LOCK_EX);

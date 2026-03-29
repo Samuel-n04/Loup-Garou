@@ -1,4 +1,5 @@
 <?php
+
 // ============================================================
 //  action.php — Reçoit les actions des joueurs (POST JSON)
 // ============================================================
@@ -49,7 +50,7 @@ $erreur = null;
 switch ($action) {
 
     case "rejoindre":
-        if (trouverDans($etat["joueurs"], fn($j) => $j["id"] === $idJoueur)) {
+        if (trouverDans($etat["joueurs"], fn ($j) => $j["id"] === $idJoueur)) {
             $erreur = "Joueur déjà inscrit";
             break;
         }
@@ -66,9 +67,18 @@ switch ($action) {
         break;
 
     case "demarrer":
-        if ($etat["hote"] !== $idJoueur) { $erreur = "Non autorisé"; break; }
-        if (count($etat["joueurs"]) < 4)  { $erreur = "Minimum 4 joueurs"; break; }
-        if ($etat["phase"] !== "attente") { $erreur = "Partie déjà lancée"; break; }
+        if ($etat["hote"] !== $idJoueur) {
+            $erreur = "Non autorisé";
+            break;
+        }
+        if (count($etat["joueurs"]) < 2) {
+            $erreur = "Minimum 2 joueurs";
+            break;
+        }
+        if ($etat["phase"] !== "attente") {
+            $erreur = "Partie déjà lancée";
+            break;
+        }
         $etat = distribuerRoles($etat);
         $etat["phase"] = "distribution";
         break;
@@ -82,40 +92,68 @@ switch ($action) {
         break;
 
     case "cupidon":
-        if ($etat["phase"] !== "nuit-cupidon") { $erreur = "Mauvaise phase"; break; }
+        if ($etat["phase"] !== "nuit-cupidon") {
+            $erreur = "Mauvaise phase";
+            break;
+        }
         $joueur = findJoueur($etat, $idJoueur);
-        if ($joueur["role"] !== "cupidon")     { $erreur = "Non autorisé"; break; }
+        if ($joueur["role"] !== "cupidon") {
+            $erreur = "Non autorisé";
+            break;
+        }
         $etat = lierAmants($etat, $body["idA"], $body["idB"]);
         $etat["phase"] = "nuit-voyante";
         break;
 
     case "voyante":
-        if ($etat["phase"] !== "nuit-voyante") { $erreur = "Mauvaise phase"; break; }
+        if ($etat["phase"] !== "nuit-voyante") {
+            $erreur = "Mauvaise phase";
+            break;
+        }
         $joueur = findJoueur($etat, $idJoueur);
-        if ($joueur["role"] !== "voyante")     { $erreur = "Non autorisé"; break; }
+        if ($joueur["role"] !== "voyante") {
+            $erreur = "Non autorisé";
+            break;
+        }
         $cible = findJoueur($etat, $body["idCible"]);
         $etat["resultatVoyante"] = $cible["role"];
         $etat["phase"] = "nuit-loups";
         break;
 
     case "loupVote":
-        if ($etat["phase"] !== "nuit-loups") { $erreur = "Mauvaise phase"; break; }
+        if ($etat["phase"] !== "nuit-loups") {
+            $erreur = "Mauvaise phase";
+            break;
+        }
         $joueur = findJoueur($etat, $idJoueur);
-        if ($joueur["role"] !== "loup-garou") { $erreur = "Non autorisé"; break; }
+        if ($joueur["role"] !== "loup-garou") {
+            $erreur = "Non autorisé";
+            break;
+        }
         $etat["votesLoups"][$idJoueur] = $body["idCible"];
-        $loups = array_filter($etat["joueurs"], fn($j) => $j["role"] === "loup-garou" && $j["vivant"]);
+        $loups = array_filter($etat["joueurs"], fn ($j) => $j["role"] === "loup-garou" && $j["vivant"]);
         if (count($etat["votesLoups"]) >= count($loups)) {
             $etat["victime"]    = majoritéVotes($etat["votesLoups"]);
             $etat["votesLoups"] = [];
-            $hasSorciere = (bool) trouverDans($etat["joueurs"], fn($j) => $j["role"] === "sorciere" && $j["vivant"]);
-            $etat["phase"] = $hasSorciere ? "nuit-sorciere" : "fin-nuit";
+            $hasSorciere = (bool) trouverDans($etat["joueurs"], fn ($j) => $j["role"] === "sorciere" && $j["vivant"]);
+            if ($hasSorciere) {
+                $etat["phase"] = "nuit-sorciere";
+            } else {
+                $etat = finNuit($etat);
+            }
         }
         break;
 
     case "sorciere":
-        if ($etat["phase"] !== "nuit-sorciere") { $erreur = "Mauvaise phase"; break; }
+        if ($etat["phase"] !== "nuit-sorciere") {
+            $erreur = "Mauvaise phase";
+            break;
+        }
         $joueur = findJoueur($etat, $idJoueur);
-        if ($joueur["role"] !== "sorciere")     { $erreur = "Non autorisé"; break; }
+        if ($joueur["role"] !== "sorciere") {
+            $erreur = "Non autorisé";
+            break;
+        }
         if (!empty($body["utiliserVie"]) && $joueur["potionVie"] && $etat["victime"]) {
             $victime = &findJoueurRef($etat, $etat["victime"]);
             $victime["vivant"] = true;
@@ -134,32 +172,53 @@ switch ($action) {
         break;
 
     case "finNuit":
-        if ($etat["phase"] !== "fin-nuit") { $erreur = "Mauvaise phase"; break; }
+        if ($etat["phase"] !== "fin-nuit") {
+            $erreur = "Mauvaise phase";
+            break;
+        }
         $etat = finNuit($etat);
         break;
 
     case "demarrerVote":
-        if ($etat["hote"] !== $idJoueur) { $erreur = "Non autorisé"; break; }
-        if ($etat["phase"] !== "jour")   { $erreur = "Mauvaise phase"; break; }
+        if ($etat["hote"] !== $idJoueur) {
+            $erreur = "Non autorisé";
+            break;
+        }
+        if ($etat["phase"] !== "jour") {
+            $erreur = "Mauvaise phase";
+            break;
+        }
         $etat["votesJour"] = [];
         $etat["phase"]     = "vote";
         break;
 
     case "vote":
-        if ($etat["phase"] !== "vote") { $erreur = "Mauvaise phase"; break; }
+        if ($etat["phase"] !== "vote") {
+            $erreur = "Mauvaise phase";
+            break;
+        }
         $joueur = findJoueur($etat, $idJoueur);
-        if (!$joueur["vivant"])        { $erreur = "Joueur mort"; break; }
+        if (!$joueur["vivant"]) {
+            $erreur = "Joueur mort";
+            break;
+        }
         $etat["votesJour"][$idJoueur] = $body["idCible"];
-        $vivants = array_filter($etat["joueurs"], fn($j) => $j["vivant"]);
+        $vivants = array_filter($etat["joueurs"], fn ($j) => $j["vivant"]);
         if (count($etat["votesJour"]) >= count($vivants)) {
             $etat = depouiller($etat);
         }
         break;
 
     case "chasseurTire":
-        if ($etat["phase"] !== "chasseur") { $erreur = "Mauvaise phase"; break; }
+        if ($etat["phase"] !== "chasseur") {
+            $erreur = "Mauvaise phase";
+            break;
+        }
         $joueur = findJoueur($etat, $idJoueur);
-        if ($joueur["role"] !== "chasseur") { $erreur = "Non autorisé"; break; }
+        if ($joueur["role"] !== "chasseur") {
+            $erreur = "Non autorisé";
+            break;
+        }
         $cible = &findJoueurRef($etat, $body["idCible"]);
         $cible["vivant"] = false;
         $chasseur = &findJoueurRef($etat, $idJoueur);
@@ -172,7 +231,7 @@ switch ($action) {
         $enCours = $etat["phase"] !== "attente";
         $etat["joueurs"] = array_values(array_filter(
             $etat["joueurs"],
-            fn($j) => $j["id"] !== $idJoueur
+            fn ($j) => $j["id"] !== $idJoueur
         ));
         if ($estHote && $enCours) {
             $etat["phase"]     = "fin";
@@ -187,8 +246,14 @@ switch ($action) {
 
     case "chat":
         $texte = trim($body["texte"] ?? "");
-        if (!$texte) { $erreur = "Message vide"; break; }
-        if (strlen($texte) > 200) { $erreur = "Message trop long"; break; }
+        if (!$texte) {
+            $erreur = "Message vide";
+            break;
+        }
+        if (strlen($texte) > 200) {
+            $erreur = "Message trop long";
+            break;
+        }
         $etat["messages"][] = [
             "auteur" => $idJoueur,
             "texte"  => $texte,
@@ -221,45 +286,60 @@ if ($erreur) {
 // ============================================================
 //  LOGIQUE DE JEU
 // ============================================================
-function distribuerRoles(array $etat): array {
+function distribuerRoles(array $etat): array
+{
     $n     = count($etat["joueurs"]);
     $roles = genererRoles($n, $etat["rolesActifs"] ?? []);
     shuffle($roles);
     foreach ($etat["joueurs"] as $i => &$j) {
         $j["role"] = $roles[$i];
-        if ($j["role"] === "sorciere") { $j["potionVie"] = true; $j["potionMort"] = true; }
-        if ($j["role"] === "chasseur") { $j["peutTirer"] = true; }
+        if ($j["role"] === "sorciere") {
+            $j["potionVie"] = true;
+            $j["potionMort"] = true;
+        }
+        if ($j["role"] === "chasseur") {
+            $j["peutTirer"] = true;
+        }
     }
     $etat["tour"] = 1;
     return $etat;
 }
 
-function genererRoles(int $n, array $rolesActifs = []): array {
+function genererRoles(int $n, array $rolesActifs = []): array
+{
     $roles   = [];
     $nbLoups = $n >= 10 ? 3 : ($n >= 7 ? 2 : 1);
-    for ($i = 0; $i < $nbLoups; $i++) $roles[] = "loup-garou";
+    for ($i = 0; $i < $nbLoups; $i++) {
+        $roles[] = "loup-garou";
+    }
     $speciaux = !empty($rolesActifs) ? $rolesActifs : ["voyante", "sorciere", "chasseur", "cupidon", "petite-fille"];
     foreach ($speciaux as $r) {
-        if (count($roles) < $n) $roles[] = $r;
+        if (count($roles) < $n) {
+            $roles[] = $r;
+        }
     }
-    while (count($roles) < $n) $roles[] = "villageois";
+    while (count($roles) < $n) {
+        $roles[] = "villageois";
+    }
     return $roles;
 }
 
-function demarrerNuit(array $etat): array {
+function demarrerNuit(array $etat): array
+{
     $etat["victime"]    = null;
     $etat["votesLoups"] = [];
-    $hasCupidon = (bool) trouverDans($etat["joueurs"], fn($j) => $j["role"] === "cupidon" && $j["vivant"]);
+    $hasCupidon = (bool) trouverDans($etat["joueurs"], fn ($j) => $j["role"] === "cupidon" && $j["vivant"]);
     if ($etat["tour"] === 1 && $hasCupidon && !($etat["cupidonFait"] ?? false)) {
         $etat["phase"] = "nuit-cupidon";
     } else {
-        $hasVoyante = (bool) trouverDans($etat["joueurs"], fn($j) => $j["role"] === "voyante" && $j["vivant"]);
+        $hasVoyante = (bool) trouverDans($etat["joueurs"], fn ($j) => $j["role"] === "voyante" && $j["vivant"]);
         $etat["phase"] = $hasVoyante ? "nuit-voyante" : "nuit-loups";
     }
     return $etat;
 }
 
-function finNuit(array $etat): array {
+function finNuit(array $etat): array
+{
     if ($etat["victime"]) {
         $victime = &findJoueurRef($etat, $etat["victime"]);
         $victime["vivant"] = false;
@@ -270,12 +350,17 @@ function finNuit(array $etat): array {
     }
     $etat["victime"] = null;
     $fin = verifierFin($etat);
-    if ($fin) { $etat["phase"] = "fin"; $etat["vainqueur"] = $fin; return $etat; }
+    if ($fin) {
+        $etat["phase"] = "fin";
+        $etat["vainqueur"] = $fin;
+        return $etat;
+    }
     $etat["phase"] = "jour";
     return $etat;
 }
 
-function depouiller(array $etat): array {
+function depouiller(array $etat): array
+{
     $idElimine         = majoritéVotes($etat["votesJour"]);
     $etat["votesJour"] = [];
     $elimine           = &findJoueurRef($etat, $idElimine);
@@ -292,70 +377,108 @@ function depouiller(array $etat): array {
     return apresElimination($etat);
 }
 
-function apresElimination(array $etat): array {
+function apresElimination(array $etat): array
+{
     $fin = verifierFin($etat);
-    if ($fin) { $etat["phase"] = "fin"; $etat["vainqueur"] = $fin; return $etat; }
+    if ($fin) {
+        $etat["phase"] = "fin";
+        $etat["vainqueur"] = $fin;
+        return $etat;
+    }
     $etat["tour"]++;
     return demarrerNuit($etat);
 }
 
-function lierAmants(array $etat, string $idA, string $idB): array {
+function lierAmants(array $etat, string $idA, string $idB): array
+{
     foreach ($etat["joueurs"] as &$j) {
-        if ($j["id"] === $idA) $j["amant"] = $idB;
-        if ($j["id"] === $idB) $j["amant"] = $idA;
+        if ($j["id"] === $idA) {
+            $j["amant"] = $idB;
+        }
+        if ($j["id"] === $idB) {
+            $j["amant"] = $idA;
+        }
     }
     $etat["cupidonFait"] = true;
     return $etat;
 }
 
-function majoritéVotes(array $votes): string {
+function majoritéVotes(array $votes): string
+{
     $comptage = [];
-    foreach ($votes as $cible) $comptage[$cible] = ($comptage[$cible] ?? 0) + 1;
+    foreach ($votes as $cible) {
+        $comptage[$cible] = ($comptage[$cible] ?? 0) + 1;
+    }
     arsort($comptage);
     return array_key_first($comptage);
 }
 
-function verifierFin(array $etat): ?string {
-    $vivants = array_filter($etat["joueurs"], fn($j) => $j["vivant"]);
-    $loups   = array_filter($vivants, fn($j) => $j["role"] === "loup-garou");
-    $autres  = array_filter($vivants, fn($j) => $j["role"] !== "loup-garou");
-    if (count($loups) === 0) return "villageois";
-    if (count($loups) >= count($autres)) return "loups";
-    $amants = array_filter($vivants, fn($j) => $j["amant"] !== null);
-    if (count($amants) === 2 && count($vivants) === 2) return "amants";
+function verifierFin(array $etat): ?string
+{
+    $vivants = array_filter($etat["joueurs"], fn ($j) => $j["vivant"]);
+
+    // La condition des amants est prioritaire
+    $amants = array_filter($vivants, fn ($j) => $j["amant"] !== null);
+    if (count($amants) === 2 && count($vivants) === 2) {
+        return "amants";
+    }
+
+    $loups   = array_filter($vivants, fn ($j) => $j["role"] === "loup-garou");
+    $autres  = array_filter($vivants, fn ($j) => $j["role"] !== "loup-garou");
+    if (count($loups) === 0) {
+        return "villageois";
+    }
+    if (count($loups) >= count($autres)) {
+        return "loups";
+    }
+    
     return null;
 }
 
 // ============================================================
 //  UTILITAIRES
 // ============================================================
-function lireJSON(string $chemin): ?array {
-    if (!file_exists($chemin)) return null;
+function lireJSON(string $chemin): ?array
+{
+    if (!file_exists($chemin)) {
+        return null;
+    }
     return json_decode(file_get_contents($chemin), true);
 }
 
-function ecrireJSON(string $chemin, array $data): void {
+function ecrireJSON(string $chemin, array $data): void
+{
     file_put_contents($chemin, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 }
 
-function trouverDans(array $arr, callable $fn): ?array {
-    foreach ($arr as $item) { if ($fn($item)) return $item; }
+function trouverDans(array $arr, callable $fn): ?array
+{
+    foreach ($arr as $item) {
+        if ($fn($item)) {
+            return $item;
+        }
+    }
     return null;
 }
 
-function findJoueur(array $etat, string $id): array {
-    return trouverDans($etat["joueurs"], fn($j) => $j["id"] === $id)
+function findJoueur(array $etat, string $id): array
+{
+    return trouverDans($etat["joueurs"], fn ($j) => $j["id"] === $id)
         ?? throw new Exception("Joueur $id introuvable");
 }
 
-function &findJoueurRef(array &$etat, string $id): mixed {
+function &findJoueurRef(array &$etat, string $id): mixed
+{
     foreach ($etat["joueurs"] as &$j) {
-        if ($j["id"] === $id) return $j;
+        if ($j["id"] === $id) {
+            return $j;
+        }
     }
     throw new Exception("Joueur $id introuvable");
 }
 
-function mettreAJourIndex(string $code, string $phase, int $nbJoueurs): void {
+function mettreAJourIndex(string $code, string $phase, int $nbJoueurs): void
+{
     $fichier = "../data/parties.json";
     $lock    = fopen("../data/parties.lock", "w");
     flock($lock, LOCK_EX);
@@ -366,10 +489,19 @@ function mettreAJourIndex(string $code, string $phase, int $nbJoueurs): void {
 
     if ($phase === "fin") {
         unset($index[$code]);
+        /* 
+        // NOTE: On ne supprime plus les fichiers de partie ici pour éviter une race condition
+        // où les clients essaient de poller un état final alors que le fichier a déjà été supprimé.
+        // Un nettoyage périodique (cron job) serait une meilleure approche.
         $fichierPartie = "../data/partie_$code.json";
         $fichierLock   = "../data/partie_$code.lock";
-        if (file_exists($fichierPartie)) unlink($fichierPartie);
-        if (file_exists($fichierLock))   unlink($fichierLock);
+        if (file_exists($fichierPartie)) {
+            unlink($fichierPartie);
+        }
+        if (file_exists($fichierLock)) {
+            unlink($fichierLock);
+        }
+        */
     } elseif (isset($index[$code])) {
         $index[$code]["phase"]     = $phase;
         $index[$code]["nbJoueurs"] = $nbJoueurs;

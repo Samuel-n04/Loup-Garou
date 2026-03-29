@@ -1,4 +1,5 @@
 <?php
+
 // ============================================================
 //  parties.php — Liste les parties disponibles
 // ============================================================
@@ -40,7 +41,9 @@ flock($indexLock, LOCK_UN);
 fclose($indexLock);
 
 // Retourner uniquement les parties publiques en attente
-$publiques = array_values(array_filter($index, fn($p) =>
+$publiques = array_values(array_filter(
+    $index,
+    fn ($p) =>
     $p["public"] === true && $p["phase"] === "attente"
 ));
 
