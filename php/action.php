@@ -63,6 +63,8 @@ switch ($action) {
             "potionVie"  => null,
             "potionMort" => null,
             "peutTirer"  => null,
+            "decouverte" => null,
+            "aEspionne"  => null,
         ];
         break;
 
@@ -102,7 +104,8 @@ switch ($action) {
             break;
         }
         $etat = lierAmants($etat, $body["idA"], $body["idB"]);
-        $etat["phase"] = "nuit-voyante";
+        $hasVoyante = (bool) trouverDans($etat["joueurs"], fn ($j) => $j["role"] === "voyante" && $j["vivant"]);
+        $etat["phase"] = $hasVoyante ? "nuit-voyante" : prochainAvantLoups($etat);
         break;
 
     case "voyante":
@@ -117,31 +120,8 @@ switch ($action) {
         }
         $cible = findJoueur($etat, $body["idCible"]);
         $etat["resultatVoyante"] = $cible["role"];
-        $etat["phase"] = "nuit-loups";
-        break;
-
-    case "loupVote":
-        if ($etat["phase"] !== "nuit-loups") {
-            $erreur = "Mauvaise phase";
-            break;
-        }
-        $joueur = findJoueur($etat, $idJoueur);
-        if ($joueur["role"] !== "loup-garou") {
-            $erreur = "Non autorisé";
-            break;
-        }
-        $etat["votesLoups"][$idJoueur] = $body["idCible"];
-        $loups = array_filter($etat["joueurs"], fn ($j) => $j["role"] === "loup-garou" && $j["vivant"]);
-        if (count($etat["votesLoups"]) >= count($loups)) {
-            $etat["victime"]    = majoritéVotes($etat["votesLoups"]);
-            $etat["votesLoups"] = [];
-            $hasSorciere = (bool) trouverDans($etat["joueurs"], fn ($j) => $j["role"] === "sorciere" && $j["vivant"]);
-            if ($hasSorciere) {
-                $etat["phase"] = "nuit-sorciere";
-            } else {
-                $etat = finNuit($etat);
-            }
-        }
+        $etat["cibleVoyante"] = $body["idCible"];
+        $etat["phase"] = prochainAvantLoups($etat);
         break;
 
     case "sorciere":
@@ -154,21 +134,111 @@ switch ($action) {
             $erreur = "Non autorisé";
             break;
         }
+
         if (!empty($body["utiliserVie"]) && $joueur["potionVie"] && $etat["victime"]) {
             $victime = &findJoueurRef($etat, $etat["victime"]);
             $victime["vivant"] = true;
-            $etat["victime"]   = null;
-            $sorciere = &findJoueurRef($etat, $idJoueur);
-            $sorciere["potionVie"] = false;
+            $etat["victime"] = null;
+            $joueurRef = &findJoueurRef($etat, $idJoueur);
+            $joueurRef["potionVie"] = false;
         }
-        if (!empty($body["idCibleMort"])) {
-            $cible = &findJoueurRef($etat, $body["idCibleMort"]);
-            $cible["vivant"] = false;
-            $sorciere = &findJoueurRef($etat, $idJoueur);
-            $sorciere["potionMort"] = false;
+
+        if (!empty($body["idCibleMort"]) && $joueur["potionMort"]) {
+            tuerJoueur($etat, $body["idCibleMort"]);
+            $joueurRef = &findJoueurRef($etat, $idJoueur);
+            $joueurRef["potionMort"] = false;
         }
-        $etat["resultatVoyante"] = null;
+
+        // On ne remet PLUS resultatVoyante à null ici
         $etat = finNuit($etat);
+        break;
+
+    case "loupVote":
+        if ($etat["phase"] !== "nuit-loups") {
+            $erreur = "Mauvaise phase";
+            break;
+        }
+        $joueur = findJoueur($etat, $idJoueur);
+        if ($joueur["role"] !== "loup-garou") {
+            $erreur = "Non autorisé";
+            break;
+        }
+
+        $etat["votesLoups"][$idJoueur] = $body["idCible"];
+        $loups = array_filter($etat["joueurs"], fn ($j) => $j["role"] === "loup-garou" && $j["vivant"]);
+
+        if (count($etat["votesLoups"]) >= count($loups)) {
+
+            $etat["victime"]    = majoritéVotes($etat["votesLoups"]);
+            $etat["votesLoups"] = [];
+
+            $hasSorciere = (bool) trouverDans(
+                $etat["joueurs"],
+                fn ($j) =>
+                $j["role"] === "sorciere" && $j["vivant"]
+            );
+
+            if ($hasSorciere) {
+                $etat["phase"] = "nuit-sorciere";
+            } else {
+                $etat = finNuit($etat);
+            }
+        }
+        break;
+
+    case "petiteFilleEspionne":
+        if ($etat["phase"] !== "nuit-petite-fille") {
+            $erreur = "Mauvaise phase";
+            break;
+        }
+        $joueur = &findJoueurRef($etat, $idJoueur);
+        if ($joueur["role"] !== "petite-fille" || !$joueur["vivant"]) {
+            $erreur = "Non autorisé";
+            break;
+        }
+
+        // 1 chance sur 3 d'être repérée
+        $decouverte = rand(1, 3) === 1;
+
+        if ($decouverte) {
+            // Repérée : les loups l'éliminent à sa place, les votes loups sont annulés
+            $etat["victime"] = $joueur["id"];
+            $etat["resultatEspionnage"] = ["decouverte" => true];
+
+            $hasSorciere = (bool) trouverDans(
+                $etat["joueurs"],
+                fn ($j) => $j["role"] === "sorciere" && $j["vivant"]
+            );
+            if ($hasSorciere) {
+                $etat["phase"] = "nuit-sorciere";
+            } else {
+                $etat = finNuit($etat);
+            }
+        } else {
+            // Non repérée : révèle les identités des loups, le tour des loups commence
+            $loups = array_values(array_filter(
+                $etat["joueurs"],
+                fn ($j) => $j["role"] === "loup-garou" && $j["vivant"]
+            ));
+            $etat["resultatEspionnage"] = [
+                "loups" => array_map(fn ($l) => $l["id"], $loups)
+            ];
+            $etat["alerteEspionnage"] = true; // signal aux loups que la petite fille les observe
+            $etat["phase"] = "nuit-loups";
+        }
+        break;
+
+    case "petiteFillePasser":
+        if ($etat["phase"] !== "nuit-petite-fille") {
+            $erreur = "Mauvaise phase";
+            break;
+        }
+        $joueur = findJoueur($etat, $idJoueur);
+        if ($joueur["role"] !== "petite-fille" || !$joueur["vivant"]) {
+            $erreur = "Non autorisé";
+            break;
+        }
+        $etat["phase"] = "nuit-loups";
         break;
 
     case "finNuit":
@@ -189,7 +259,7 @@ switch ($action) {
             break;
         }
         $etat["votesJour"] = [];
-        $etat["phase"]     = "vote";
+        $etat["phase"] = "vote";
         break;
 
     case "vote":
@@ -202,10 +272,31 @@ switch ($action) {
             $erreur = "Joueur mort";
             break;
         }
+
         $etat["votesJour"][$idJoueur] = $body["idCible"];
         $vivants = array_filter($etat["joueurs"], fn ($j) => $j["vivant"]);
+
         if (count($etat["votesJour"]) >= count($vivants)) {
-            $etat = depouiller($etat);
+            $idElimine = majoritéVotes($etat["votesJour"]);
+            $nomElimine = findJoueur($etat, $idElimine)["nom"];
+            $roleElimine = findJoueur($etat, $idElimine)["role"];
+            
+            $etat["messages"][] = [
+                "auteur" => "Narrateur",
+                "texte"  => "Le village a décidé d'éliminer $nomElimine. Il était " . nomRole($roleElimine) . ".",
+                "ts"     => time(),
+            ];
+            
+            $etat["votesJour"] = [];
+            
+            $elimine = findJoueur($etat, $idElimine);
+            if ($elimine["role"] === "chasseur" && $elimine["peutTirer"]) {
+                tuerJoueur($etat, $idElimine);
+                $etat["phase"] = "chasseur";
+            } else {
+                tuerJoueur($etat, $idElimine);
+                $etat = apresElimination($etat);
+            }
         }
         break;
 
@@ -219,46 +310,73 @@ switch ($action) {
             $erreur = "Non autorisé";
             break;
         }
-        $cible = &findJoueurRef($etat, $body["idCible"]);
-        $cible["vivant"] = false;
-        $chasseur = &findJoueurRef($etat, $idJoueur);
-        $chasseur["peutTirer"] = false;
-        $etat = apresElimination($etat);
+
+        $cible = findJoueur($etat, $body["idCible"]);
+        $etat["messages"][] = [
+            "auteur" => "Narrateur",
+            "texte"  => "Le Chasseur abat " . $cible["nom"] . " (" . nomRole($cible["role"]) . ") dans son dernier souffle !",
+            "ts"     => time(),
+        ];
+
+        tuerJoueur($etat, $body["idCible"]);
+
+        $joueurRef = &findJoueurRef($etat, $idJoueur);
+        $joueurRef["peutTirer"] = false;
+
+        // Si le chasseur a été tué de nuit, la partie continue sur le jour (pas une nouvelle nuit)
+        if ($etat["chasseurDeNuit"] ?? false) {
+            $etat["chasseurDeNuit"] = false;
+            $fin = verifierFin($etat);
+            if ($fin) {
+                $etat["phase"] = "fin";
+                $etat["vainqueur"] = $fin;
+            } else {
+                $etat["phase"] = "jour";
+            }
+        } else {
+            $etat = apresElimination($etat);
+        }
         break;
 
     case "quitter":
         $estHote = $etat["hote"] === $idJoueur;
         $enCours = $etat["phase"] !== "attente";
+
         $etat["joueurs"] = array_values(array_filter(
             $etat["joueurs"],
             fn ($j) => $j["id"] !== $idJoueur
         ));
+
         if ($estHote && $enCours) {
-            $etat["phase"]     = "fin";
+            $etat["phase"] = "fin";
             $etat["vainqueur"] = "annule";
         } elseif ($estHote && count($etat["joueurs"]) > 0) {
             $etat["hote"] = $etat["joueurs"][0]["id"];
         } elseif ($estHote && count($etat["joueurs"]) === 0) {
-            $etat["phase"]     = "fin";
+            $etat["phase"] = "fin";
             $etat["vainqueur"] = "annule";
         }
         break;
 
     case "chat":
         $texte = trim($body["texte"] ?? "");
+
         if (!$texte) {
             $erreur = "Message vide";
             break;
         }
+
         if (strlen($texte) > 200) {
             $erreur = "Message trop long";
             break;
         }
+
         $etat["messages"][] = [
             "auteur" => $idJoueur,
             "texte"  => $texte,
             "ts"     => time(),
         ];
+
         if (count($etat["messages"]) > 100) {
             $etat["messages"] = array_slice($etat["messages"], -100);
         }
@@ -267,7 +385,6 @@ switch ($action) {
     default:
         $erreur = "Action inconnue : $action";
 }
-
 if (!$erreur) {
     ecrireJSON($fichierPartie, $etat);
     mettreAJourIndex($code, $etat["phase"], count($etat["joueurs"]));
@@ -326,29 +443,82 @@ function genererRoles(int $n, array $rolesActifs = []): array
 
 function demarrerNuit(array $etat): array
 {
-    $etat["victime"]    = null;
-    $etat["votesLoups"] = [];
+    foreach ($etat["joueurs"] as &$j) {
+        if (isset($j["decouverte"])) {
+            $j["decouverte"] = false;
+        }
+    }
+    $etat["victime"]           = null;
+    $etat["votesLoups"]        = [];
+    $etat["alerteEspionnage"]  = false;
+    $etat["resultatEspionnage"] = null;
     $hasCupidon = (bool) trouverDans($etat["joueurs"], fn ($j) => $j["role"] === "cupidon" && $j["vivant"]);
     if ($etat["tour"] === 1 && $hasCupidon && !($etat["cupidonFait"] ?? false)) {
         $etat["phase"] = "nuit-cupidon";
     } else {
         $hasVoyante = (bool) trouverDans($etat["joueurs"], fn ($j) => $j["role"] === "voyante" && $j["vivant"]);
-        $etat["phase"] = $hasVoyante ? "nuit-voyante" : "nuit-loups";
+        $etat["phase"] = $hasVoyante ? "nuit-voyante" : prochainAvantLoups($etat);
     }
     return $etat;
 }
 
+// Retourne la phase qui précède immédiatement nuit-loups
+// (nuit-petite-fille si la petite fille est vivante, sinon nuit-loups directement)
+function prochainAvantLoups(array $etat): string
+{
+    $hasPetiteFille = (bool) trouverDans(
+        $etat["joueurs"],
+        fn ($j) => $j["role"] === "petite-fille" && $j["vivant"]
+    );
+    return $hasPetiteFille ? "nuit-petite-fille" : "nuit-loups";
+}
+
 function finNuit(array $etat): array
 {
+    $morts = [];
     if ($etat["victime"]) {
-        $victime = &findJoueurRef($etat, $etat["victime"]);
-        $victime["vivant"] = false;
-        if ($victime["amant"]) {
-            $amant = &findJoueurRef($etat, $victime["amant"]);
-            $amant["vivant"] = false;
+        $morts[] = $etat["victime"];
+    }
+
+    foreach ($morts as $id) {
+        tuerJoueur($etat, $id);
+    }
+
+    // Si le chasseur est mort cette nuit, il tire avant l'aube
+    foreach ($morts as $id) {
+        $j = findJoueur($etat, $id);
+        if ($j["role"] === "chasseur" && ($j["peutTirer"] ?? false)) {
+            $etat["chasseurDeNuit"] = true;
+            $etat["victime"]        = null;
+            $etat["resultatVoyante"] = null;
+            $etat["cibleVoyante"]   = null;
+            $etat["phase"] = "chasseur";
+            return $etat;
         }
     }
-    $etat["victime"] = null;
+
+    if (count($morts) > 0) {
+        $détails = array_map(function ($id) use (&$etat) {
+            $j = findJoueur($etat, $id);
+            return $j["nom"] . " (" . nomRole($j["role"]) . ")";
+        }, $morts);
+        $etat["messages"][] = [
+            "auteur" => "Narrateur",
+            "texte"  => "Le village se réveille. " . implode(" et ", $détails) . " nous ont quittés cette nuit.",
+            "ts"     => time(),
+        ];
+    } else {
+        $etat["messages"][] = [
+            "auteur" => "Narrateur",
+            "texte"  => "Le village se réveille. La nuit a été calme.",
+            "ts"     => time(),
+        ];
+    }
+
+    $etat["victime"]         = null;
+    $etat["resultatVoyante"] = null;
+    $etat["cibleVoyante"]    = null;
+
     $fin = verifierFin($etat);
     if ($fin) {
         $etat["phase"] = "fin";
@@ -359,22 +529,42 @@ function finNuit(array $etat): array
     return $etat;
 }
 
-function depouiller(array $etat): array
+function majoritéVotes(array $votes): string
 {
-    $idElimine         = majoritéVotes($etat["votesJour"]);
-    $etat["votesJour"] = [];
-    $elimine           = &findJoueurRef($etat, $idElimine);
-    if ($elimine["role"] === "chasseur" && $elimine["peutTirer"]) {
-        $elimine["vivant"] = false;
-        $etat["phase"]     = "chasseur";
-        return $etat;
+    $comptage = [];
+    foreach ($votes as $cible) {
+        $comptage[$cible] = ($comptage[$cible] ?? 0) + 1;
     }
-    $elimine["vivant"] = false;
-    if ($elimine["amant"]) {
-        $amant = &findJoueurRef($etat, $elimine["amant"]);
-        $amant["vivant"] = false;
+    
+    if (empty($comptage)) {
+        return ""; 
     }
-    return apresElimination($etat);
+    
+    arsort($comptage);
+    $max = reset($comptage);
+    $gagnants = array_keys($comptage, $max);
+    
+    return $gagnants[array_rand($gagnants)];
+}
+
+function tuerJoueur(array &$etat, string $id): void
+{
+    $j = &findJoueurRef($etat, $id);
+    if (!$j["vivant"]) return;
+    
+    $j["vivant"] = false;
+    
+    if ($j["amant"]) {
+        $amant = &findJoueurRef($etat, $j["amant"]);
+        if ($amant["vivant"]) {
+            $amant["vivant"] = false;
+            $etat["messages"][] = [
+                "auteur" => "Narrateur",
+                "texte"  => $amant["nom"] . " (" . nomRole($amant["role"]) . ") meurt de chagrin a la perte de son amour.",
+                "ts"     => time(),
+            ];
+        }
+    }
 }
 
 function apresElimination(array $etat): array
@@ -403,21 +593,10 @@ function lierAmants(array $etat, string $idA, string $idB): array
     return $etat;
 }
 
-function majoritéVotes(array $votes): string
-{
-    $comptage = [];
-    foreach ($votes as $cible) {
-        $comptage[$cible] = ($comptage[$cible] ?? 0) + 1;
-    }
-    arsort($comptage);
-    return array_key_first($comptage);
-}
-
 function verifierFin(array $etat): ?string
 {
     $vivants = array_filter($etat["joueurs"], fn ($j) => $j["vivant"]);
 
-    // La condition des amants est prioritaire
     $amants = array_filter($vivants, fn ($j) => $j["amant"] !== null);
     if (count($amants) === 2 && count($vivants) === 2) {
         return "amants";
@@ -431,7 +610,7 @@ function verifierFin(array $etat): ?string
     if (count($loups) >= count($autres)) {
         return "loups";
     }
-    
+
     return null;
 }
 
@@ -489,7 +668,7 @@ function mettreAJourIndex(string $code, string $phase, int $nbJoueurs): void
 
     if ($phase === "fin") {
         unset($index[$code]);
-        /* 
+        /*
         // NOTE: On ne supprime plus les fichiers de partie ici pour éviter une race condition
         // où les clients essaient de poller un état final alors que le fichier a déjà été supprimé.
         // Un nettoyage périodique (cron job) serait une meilleure approche.
@@ -510,4 +689,18 @@ function mettreAJourIndex(string $code, string $phase, int $nbJoueurs): void
     file_put_contents($fichier, json_encode($index, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
     flock($lock, LOCK_UN);
     fclose($lock);
+}
+
+function nomRole(string $role): string
+{
+    $noms = [
+        "loup-garou"   => "Loup-Garou",
+        "villageois"   => "Villageois",
+        "voyante"      => "Voyante",
+        "sorciere"     => "Sorciere",
+        "chasseur"     => "Chasseur",
+        "cupidon"      => "Cupidon",
+        "petite-fille" => "Petite Fille",
+    ];
+    return $noms[$role] ?? ucfirst($role);
 }

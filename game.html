@@ -4,19 +4,15 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Loup-Garou — Partie</title>
-        <link
-            href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap"
-            rel="stylesheet"
-        />
         <link rel="stylesheet" href="css/game.css" />
     </head>
     <body class="nuit">
         <!-- ── Topbar ───────────────────────────────────────────── -->
         <div id="topbar">
-            <a href="help.html">? Aide</a>
+            <button onclick="location.href='help.html'">Aide</button>
 
             <div id="tour-info">
-                <span id="phase-icon">🌙</span>
+                <span id="phase-icon"></span>
                 <span id="phase-label">Nuit 1</span>
             </div>
 
@@ -47,21 +43,31 @@
             </div>
         </div>
 
-        <!-- ── Chat ─────────────────────────────────────────────── -->
-        <div id="chat">
-            <div id="chat-header">💬 Discussion</div>
-            <div id="chat-messages" id="chat-messages"></div>
-            <div id="chat-input-zone">
-                <input
-                    type="text"
-                    id="chat-input"
-                    placeholder="Votre message…"
-                    maxlength="200"
-                />
-                <button id="chat-send">Envoyer</button>
+        <!-- ── Sidebar ── -->
+        <div id="sidebar">
+            <div id="liste-vivants">
+                <div class="sidebar-header">Habitants du Village</div>
+                <div id="joueurs-container"></div>
+            </div>
+
+            <!-- ── Chat ── -->
+            <div id="chat">
+                <div id="chat-header">Discussion</div>
+                <div id="chat-messages"></div>
+                <div id="chat-input-zone">
+                    <input
+                        type="text"
+                        id="chat-input"
+                        placeholder="Votre message…"
+                        maxlength="200"
+                    />
+                    <button id="chat-send">Envoyer</button>
+                </div>
             </div>
         </div>
 
+        </div>
+        <!-- Script principal -->
         <script type="module" src="js/game.js"></script>
     </body>
 </html>

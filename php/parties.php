@@ -16,17 +16,20 @@ if (!$pseudo) {
 }
 
 $indexFichier = "../data/parties.json";
+$indexLockF   = "../data/parties.lock";
 
 if (!file_exists($indexFichier)) {
     echo json_encode(["parties" => []]);
     exit;
 }
 
+// On verrouille l'index pour le lire et le nettoyer si besoin
+$indexLock = fopen($indexLockF, "w");
+flock($indexLock, LOCK_EX);
+
 $index = json_decode(file_get_contents($indexFichier), true) ?? [];
 
 // Nettoyer les parties fantômes (fichier supprimé mais encore dans l'index)
-$indexLock = fopen("../data/parties.lock", "w");
-flock($indexLock, LOCK_EX);
 $modifie = false;
 foreach ($index as $code => $infos) {
     if (!file_exists("../data/partie_$code.json")) {

@@ -65,9 +65,11 @@ async function getEtat() {
 function _traiterEtat(etat) {
     if (!etat || !etat.phase) return;
 
-    // Toujours appeler le handler de mise à jour avec le nouvel état.
-    // L'ancien code ne se mettait à jour que si la phase changeait,
-    // ce qui empêchait les nouveaux messages de s'afficher.
+    if (etat.messages && etat.messages.length > 0) {
+        const lastMsgTs = Math.max(...etat.messages.map(m => m.ts));
+        setDernierTs(lastMsgTs);
+    }
+
     on.phaseChange?.(etat);
     _phaseActuelle = etat.phase;
     
@@ -124,6 +126,8 @@ export const demarrerVote = () => action({ action: "demarrerVote" });
 export const vote = (idCible) => action({ action: "vote", idCible });
 export const chasseurTire = (idCible) =>
     action({ action: "chasseurTire", idCible });
+export const petiteFilleEspionne = () => action({ action: "petiteFilleEspionne" });
+export const petiteFillePasser   = () => action({ action: "petiteFillePasser" });
 export const finNuit = () => action({ action: "finNuit" });
 export const chat = (texte) => action({ action: "chat", texte });
 export const quitter = () => action({ action: "quitter" });

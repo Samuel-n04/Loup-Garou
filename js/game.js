@@ -1,637 +1,613 @@
 import * as API from "./api.js";
 
-// ── Vérifier qu'un code de partie est présent ─────────────
-if (!API.getCode()) {
-    location.href = "lobby.html";
+// ---------------- Configuration -----------------
+const ROLE_SPRITES = {
+    "loup-garou": "loupGarou.png",
+    villageois: "villageois.png",
+    voyante: "voyante.png",
+    sorciere: "sorciere.png",
+    chasseur: "chasseur.png",
+    cupidon: "cupidon.png",
+    "petite-fille": "petite-fille.png",
+};
+
+// ---------------- State -----------------
+let etatActuel = null;
+let monPseudo = null;
+let selections = []; // Pour les rôles comme Cupidon qui demandent 2 cibles
+
+// ---------------- Utils -----------------
+function escapeHTML(str) {
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
 }
 
-// ── État local ────────────────────────────────────────────
-let etat = null;
-let monRole = null;
-let cibleSelectionnee = null;
-let ciblesAmants = [];
-let modeSelection = "normal"; // normal | poison | cupidon
-let _lastNarratedPhase = null;
-let _lastVoyanteResult = null;
-let _lastSorciereTour = -1;
-
-// ── Positions en cercle ───────────────────────────────────
-function positionCercle(index, total, cx, cy, rx, ry) {
-    const angle = (90 + (index / total) * 360) * (Math.PI / 180);
-    return {
-        x: cx + rx * Math.cos(angle),
-        y: cy + ry * Math.sin(angle),
-    };
+/**
+ * Simple scale animation using the Web Animations API.
+ * Used for quick feedback on badges and card selections.
+ */
+function animateScale(el) {
+    if (!el) return;
+    el.animate(
+        [
+            { transform: "scale(1)" },
+            { transform: "scale(1.2)" },
+            { transform: "scale(1)" },
+        ],
+        {
+            duration: 200,
+            easing: "ease-out",
+        },
+    );
 }
 
-// ── Rendu des cartes ──────────────────────────────────────
-function rendreCartes(joueurs) {
-    if (!etat) return;
+/**
+ * Retourne une carte avec la même animation que la page aide :
+ * spin 720° supplémentaires + flip 180°, puis snap propre.
+ */
+function flipCarte(el) {
+    if (el.classList.contains("flipped") || el.dataset.animFlip === "1") return;
+    el.dataset.animFlip = "1";
 
-    const arene = document.getElementById("arene");
-    const cx = arene.offsetWidth / 2;
-    const cy = arene.offsetHeight / 2;
-    const rx = Math.min(cx, cy) * 0.55;
-    const ry = Math.min(cx, cy) * 0.48;
+    const inner = el.querySelector(".carte-inner");
+    inner.style.transition = "transform 0.6s cubic-bezier(0.15, 0.85, 0.4, 1)";
+    inner.style.transform = "rotateY(900deg)"; // 180° flip + 720° spin décoratif
 
-    const moiIndex = joueurs.findIndex((j) => j.id === etat.monPseudo);
-    if (moiIndex === -1) return;
-
-    const ordonnes = [
-        ...joueurs.slice(moiIndex),
-        ...joueurs.slice(0, moiIndex),
-    ];
-
-    const cartesExistantes = new Map();
-    document.querySelectorAll(".carte-joueur").forEach((el) => {
-        cartesExistantes.set(el.dataset.id, el);
-    });
-
-    ordonnes.forEach((joueur, i) => {
-        const estMoi = joueur.id === etat.monPseudo;
-        const pos = positionCercle(i, ordonnes.length, cx, cy, rx, ry);
-
-        let div = cartesExistantes.get(joueur.id);
-
-        // 🆕 Création si n'existe pas
-        if (!div) {
-            div = document.createElement("div");
-            div.className = "carte-joueur";
-            div.dataset.id = joueur.id;
-
-            const imgDiv = document.createElement("div");
-            imgDiv.className = "carte-img";
-
-            const pseudo = document.createElement("div");
-            pseudo.className = "pseudo";
-
-            div.appendChild(imgDiv);
-            div.appendChild(pseudo);
-            arene.appendChild(div);
-
-            // -- Animation de distribution --
-            div.style.transition = "none"; // Annuler les transitions pour le positionnement initial
-            div.style.left = cx + "px";
-            div.style.top = cy + "px";
-            div.style.transform = "scale(0)";
-
-            // Event listener ajouté UNE SEULE FOIS
-            div.addEventListener("click", () => {
-                if (!joueur.vivant || estMoi) return;
-                selectionnerCible(joueur.id, div);
-            });
-        }
-
-        // 🆕 Mise à jour classes
-        div.classList.toggle("moi", estMoi);
-        div.classList.toggle("mort", !joueur.vivant);
-
-        // 🆕 Position (et animation)
-        requestAnimationFrame(() => {
-            div.style.transition = ""; // Rétablir les transitions CSS
-            div.style.left = pos.x + "px";
-            div.style.top = pos.y + "px";
-            div.style.transform = "scale(1)";
-        });
-
-        // 🆕 Image
-        const imgDiv = div.querySelector(".carte-img");
-        imgDiv.innerHTML = "";
-
-        if (estMoi && monRole) {
-            const img = document.createElement("img");
-            img.src = `sprite/${roleToSprite(monRole)}`;
-            img.alt = monRole;
-            imgDiv.appendChild(img);
-        } else {
-            const dos = document.createElement("img");
-            dos.src = "sprite/backCard.png";
-            dos.alt = "dos";
-            dos.style.width = "100%";
-            dos.style.height = "100%";
-            dos.style.objectFit = "cover";
-            imgDiv.appendChild(dos);
-        }
-
-        // Badge vote
-        const badge = document.createElement("div");
-        badge.className = "vote-badge";
-        badge.textContent = "✗";
-        imgDiv.appendChild(badge);
-
-        // 🆕 Pseudo
-        div.querySelector(".pseudo").textContent = joueur.nom;
-    });
-
-    // 🆕 Supprimer les joueurs qui n'existent plus
-    cartesExistantes.forEach((div, id) => {
-        if (!joueurs.find((j) => j.id === id)) {
-            div.remove();
-        }
-    });
+    inner.addEventListener("transitionend", function handler() {
+        inner.removeEventListener("transitionend", handler);
+        inner.style.transition = "none";
+        inner.style.transform = "rotateY(180deg)";
+        el.classList.add("flipped");
+        el.dataset.animFlip = "0";
+    }, { once: true });
 }
 
 function roleToSprite(role) {
-    const map = {
-        "loup-garou": "loupGarou.png",
-        villageois: "villageois.png",
-        voyante: "voyante.png",
-        cupidon: "cupidon.png",
-        chasseur: "chasseur.png",
-        sorciere: "sorciere.png",
-        "petite-fille": "petiteFille.png",
-    };
-    return map[role] ?? "backCard.png";
+    return ROLE_SPRITES[role] || "backCard.png";
 }
 
-// ── Animation mort (flip comme help.js) ──────────────────
-function flipMort(carteDiv, joueur) {
-    const inner = carteDiv.querySelector(".carte-img");
-    if (!inner || carteDiv.dataset.flipped === "true") return;
-    carteDiv.dataset.flipped = "true";
-
-    // Créer une structure front/back pour le flip 3D
-    const front = document.createElement("div");
-    front.className = "flip-face flip-front";
-    const imgFront = document.createElement("img");
-    imgFront.src = "sprite/backCard.png";
-    imgFront.alt = "Dos de carte";
-    front.appendChild(imgFront);
-
-    const back = document.createElement("div");
-    back.className = "flip-face flip-back";
-    const imgBack = document.createElement("img");
-    imgBack.src = `sprite/${roleToSprite(joueur.role)}`;
-    imgBack.alt = joueur.role;
-    back.appendChild(imgBack);
-
-    // Vider l'intérieur de la carte et ajouter les nouvelles faces
-    inner.innerHTML = "";
-    inner.appendChild(front);
-    inner.appendChild(back);
-
-    // Appliquer le style pour la 3D
-    inner.style.transformStyle = "preserve-3d";
-    inner.style.position = "relative";
-    
-    // Forcer un reflow pour s'assurer que l'état initial est appliqué
-    void inner.offsetWidth;
-
-    // Lancer l'animation
-    inner.style.transition = "transform 0.8s cubic-bezier(0.2, 1.2, 0.3, 1)";
-    inner.style.transform = "rotateY(180deg)";
-
-    // Ajouter la classe 'mort' après un court délai pour l'effet visuel
-    setTimeout(() => {
-        carteDiv.classList.add("mort");
-    }, 300);
+// Retourne true si c'est au joueur local d'agir cette phase
+function estMonTour(etat) {
+    if (!etat.vivant) {
+        return etat.phase === "chasseur" && etat.monRole === "chasseur";
+    }
+    switch (etat.phase) {
+        case "nuit-cupidon":       return etat.monRole === "cupidon";
+        case "nuit-petite-fille":  return etat.monRole === "petite-fille";
+        case "nuit-voyante":       return etat.monRole === "voyante";
+        case "nuit-loups":         return etat.monRole === "loup-garou";
+        case "nuit-sorciere":      return etat.monRole === "sorciere";
+        case "vote":               return true;
+        case "chasseur":           return etat.monRole === "chasseur";
+        default:                   return false;
+    }
 }
 
-// Suivre les joueurs vivants pour détecter les morts
-let _joueursVivants = {};
+// Retourne true si le joueur j est une cible cliquable valide dans la phase courante
+function cardCibleValide(etat, j) {
+    if (j.id === monPseudo || !j.vivant) return false;
+    switch (etat.phase) {
+        case "nuit-cupidon":  return etat.monRole === "cupidon";
+        case "nuit-voyante":  return etat.monRole === "voyante";
+        case "nuit-petite-fille": return false; // pas de ciblage, choix binaire espionner/passer
+        case "nuit-loups":        return etat.monRole === "loup-garou";
+        case "nuit-sorciere":     return etat.monRole === "sorciere" && !!etat.potionMort;
+        case "vote":          return !!etat.vivant;
+        case "chasseur":      return etat.monRole === "chasseur";
+        default:              return false;
+    }
+}
 
-function detecterMorts(joueurs) {
-    joueurs.forEach((j) => {
-        if (_joueursVivants[j.id] === true && j.vivant === false) {
-            // Ce joueur vient de mourir
-            const carteDiv = document.querySelector(
-                `.carte-joueur[data-id="${j.id}"]`,
-            );
-            if (carteDiv) flipMort(carteDiv, j);
+// ---------------- Initialization -----------------
+async function initialiser() {
+    const code = API.getCode();
+    if (!code) {
+        location.href = "index.php";
+        return;
+    }
+
+    API.on.phaseChange = (etat) => traiterMiseAJour(etat);
+    API.demarrerPolling(2000);
+
+    try {
+        const res = await fetch(`php/etat.php?code=${code}`);
+        const etat = await res.json();
+        if (etat.erreur) throw new Error(etat.erreur);
+        monPseudo = etat.monPseudo;
+        traiterMiseAJour(etat);
+    } catch (e) {
+        console.error("Erreur initialisation :", e);
+    }
+
+    setupChat();
+    setupButtons();
+}
+
+function setupChat() {
+    const chatInput = document.getElementById("chat-input");
+    const chatBtn = document.getElementById("chat-send");
+
+    const envoyerMessage = async () => {
+        const texte = chatInput.value.trim();
+        if (!texte) return;
+        try {
+            await API.chat(texte);
+            chatInput.value = "";
+        } catch (e) {
+            console.error(e);
         }
-        _joueursVivants[j.id] = j.vivant;
+    };
+
+    chatBtn.onclick = envoyerMessage;
+    chatInput.onkeypress = (e) => {
+        if (e.key === "Enter") envoyerMessage();
+    };
+}
+
+function setupButtons() {
+    window.onresize = function () {
+        if (etatActuel) renderJoueurs(etatActuel);
+    };
+
+    document.getElementById("btnQuitter").onclick = async () => {
+        if (!confirm("Quitter la partie ?")) return;
+        await API.quitter();
+        API.clearCode();
+        location.href = "index.php";
+    };
+}
+
+// ---------------- Core Logic -----------------
+function traiterMiseAJour(etat) {
+    const anciennePhase = etatActuel?.phase;
+    etatActuel = etat;
+
+    // Background Nuit/Jour
+    const estNuit =
+        etat.phase.startsWith("nuit") || etat.phase === "distribution";
+    document.body.className = estNuit ? "nuit" : "jour";
+
+    // Topbar
+    document.getElementById("phase-label").textContent =
+        `${tr(etat.phase)} - Tour ${etat.tour}`;
+    document.getElementById("phase-icon").textContent = estNuit ? "Nuit" : "Jour";
+    document.getElementById("mon-role-badge").textContent =
+        `Rôle : ${etat.monRole || "..."}`;
+
+    // Reset des sélections si changement de phase
+    if (anciennePhase !== etat.phase) {
+        selections = [];
+    }
+
+    // Restaurer le vote déjà posé depuis l'état serveur (persistance entre les polls)
+    if (selections.length === 0) {
+        if (etat.phase === "vote" && etat.votesJour?.[monPseudo]) {
+            selections = [etat.votesJour[monPseudo]];
+        } else if (etat.phase === "nuit-loups" && etat.votesLoups?.[monPseudo]) {
+            selections = [etat.votesLoups[monPseudo]];
+        }
+    }
+
+    // Narrateur
+    const narrOverlay = document.getElementById("narrateur-overlay");
+    const msg = genererMessageNarrateur(etat);
+    if (msg) {
+        document.getElementById("narr-texte").textContent = msg;
+        narrOverlay.classList.add("visible");
+    } else {
+        narrOverlay.classList.remove("visible");
+    }
+
+    renderJoueurs(etat);
+    renderChat(etat.messages);
+    renderActions(etat);
+    renderSidebar(etat);
+}
+
+function renderSidebar(etat) {
+    const container = document.getElementById("joueurs-container");
+    if (!container) return;
+
+    container.innerHTML = etat.joueurs
+        .map((j) => {
+            const cls = j.vivant ? "" : "mort";
+            const roleStr =
+                !j.vivant || etat.phase === "fin"
+                    ? ` (${escapeHTML(tr(j.role))})`
+                    : "";
+            const suffixe = j.id === monPseudo ? " (Moi)" : "";
+            return `<div class="ligne-joueur ${cls}"><span>${escapeHTML(j.nom)}${suffixe}${roleStr}</span></div>`;
+        })
+        .join("");
+}
+
+function renderJoueurs(etat) {
+    const arene = document.getElementById("arene");
+    const centerX = arene.clientWidth / 2;
+    const centerY = arene.clientHeight / 2;
+    const radius = Math.min(centerX * 0.72, centerY * 0.72, 320);
+
+    // Ordre de distribution : les autres en premier, propre carte en dernier
+    const autresJoueurs = etat.joueurs.filter((j) => j.id !== monPseudo);
+    const dealOrder = [...autresJoueurs, ...etat.joueurs.filter((j) => j.id === monPseudo)];
+
+    const idsActuels = etat.joueurs.map((j) => j.id);
+    document.querySelectorAll(".carte-joueur").forEach((el) => {
+        if (!idsActuels.includes(el.dataset.id)) el.remove();
+    });
+
+    // Arc pour les autres joueurs : évite le bas (réservé à la carte du joueur)
+    const N = autresJoueurs.length;
+    const GAP = Math.PI * 0.38; // ~68° de chaque côté du bas
+    const arcDebut = Math.PI / 2 + GAP;
+    const arcTotal = 2 * Math.PI - 2 * GAP;
+
+    etat.joueurs.forEach((j) => {
+        let el = document.querySelector(`.carte-joueur[data-id="${j.id}"]`);
+        let estNouveau = false;
+
+        if (!el) {
+            estNouveau = true;
+            el = document.createElement("div");
+            el.className = "carte-container carte-joueur";
+            el.dataset.id = j.id;
+            el.style.left = `${centerX}px`;
+            el.style.top = `${centerY}px`;
+            el.style.opacity = "0";
+
+            el.innerHTML = `
+                <div class="pseudo"></div>
+                <div class="carte-inner">
+                    <div class="face front"><img src="sprite/backCard.png"></div>
+                    <div class="face back"><img src="sprite/backCard.png"></div>
+                </div>
+                <div class="vote-badge">0</div>
+            `;
+
+            el.onclick = () => cliquerJoueur(j.id);
+            arene.appendChild(el);
+        }
+
+        // --- POSITION CIBLE ---
+        let targetX, targetY;
+        if (j.id === monPseudo) {
+            // Propre carte : bas centre, au-dessus de la zone d'actions
+            targetX = centerX;
+            targetY = arene.clientHeight - 95;
+        } else {
+            const idx = autresJoueurs.findIndex((a) => a.id === j.id);
+            // Répartition en arc, N=1 → centre haut, N>1 → de gauche à droite par le haut
+            const angle = arcDebut + (N > 1 ? idx / (N - 1) : 0.5) * arcTotal;
+            targetX = centerX + Math.cos(angle) * radius;
+            targetY = centerY + Math.sin(angle) * radius;
+        }
+
+        if (estNouveau) {
+            const dealIndex = dealOrder.findIndex((x) => x.id === j.id);
+            const rotation = dealIndex % 2 === 0 ? 22 : -22;
+
+            setTimeout(() => {
+                el.style.opacity = "1";
+                el.style.left = `${targetX}px`;
+                el.style.top = `${targetY}px`;
+
+                // Animation de distribution : la carte sort du centre et s'étale
+                const inner = el.querySelector(".carte-inner");
+                const anim = inner.animate(
+                    [
+                        { transform: `scale(0.08) rotate(${rotation}deg)`, opacity: 0 },
+                        { transform: "scale(1.1) rotate(0deg)", opacity: 1, offset: 0.65 },
+                        { transform: "scale(1) rotate(0deg)", opacity: 1 },
+                    ],
+                    { duration: 520, easing: "ease-out" },
+                );
+                // Libère l'état de l'animation pour ne pas bloquer le flip CSS
+                anim.onfinish = () => anim.cancel();
+            }, 130 * dealIndex);
+        } else {
+            el.style.left = `${targetX}px`;
+            el.style.top = `${targetY}px`;
+        }
+
+        // --- MISE À JOUR SYSTÉMATIQUE ---
+        const pseudoEl = el.querySelector(".pseudo");
+        pseudoEl.textContent = j.nom + (j.id === monPseudo ? " (Moi)" : "");
+
+        el.classList.toggle("mort", !j.vivant);
+        el.classList.toggle("selected", selections.includes(j.id));
+        el.classList.toggle("ma-carte", j.id === monPseudo);
+
+        // --- CLASSES D'ÉTAT PAR PHASE ---
+        const monTour = estMonTour(etat);
+        const valide = monTour && cardCibleValide(etat, j);
+        // Invalide = en jeu, pas moi, pas déjà sélectionné, mais pas ciblable
+        const invalide = monTour && !valide && j.id !== monPseudo && j.vivant;
+
+        // Allié : amant révélé, ou loup ayant déjà voté (identifié par les clés de votesLoups)
+        const estAmant = etat.monAmant === j.id;
+        const estLoupVu = etat.monRole === "loup-garou"
+            && etat.phase === "nuit-loups"
+            && etat.votesLoups
+            && j.id in etat.votesLoups;
+        const estLoupRevele = etat.monRole === "petite-fille"
+            && etat.resultatEspionnage?.loups?.includes(j.id);
+
+        // Victime : la carte attaquée cette nuit, visible par la sorcière
+        const estVictime = etat.monRole === "sorciere" && etat.victime === j.id;
+
+        el.classList.toggle("cible-valide", valide && !selections.includes(j.id));
+        el.classList.toggle("cible-invalide", invalide);
+        el.classList.toggle("est-allie", estAmant || estLoupVu || estLoupRevele);
+        el.classList.toggle("est-victime", estVictime);
+
+        // Logique de révélation des cartes
+        const estCibleVoyante =
+            etat.monRole === "voyante" && etat.cibleVoyante === j.id;
+        const estMonAmant = etat.monAmant === j.id;
+        const estLoupDecouvert =
+            etat.monRole === "petite-fille" &&
+            etat.resultatEspionnage?.loups?.includes(j.id);
+        const doitEtreRevele =
+            !j.vivant ||
+            j.id === monPseudo ||
+            etat.phase === "fin" ||
+            estCibleVoyante ||
+            estMonAmant ||
+            estLoupDecouvert;
+
+        if (doitEtreRevele && !el.classList.contains("flipped") && el.dataset.animFlip !== "1") {
+            const roleImg = el.querySelector(".back img");
+            const roleAReveler = estCibleVoyante
+                ? etat.resultatVoyante || j.role
+                : (j.id === monPseudo ? etat.monRole : j.role);
+            roleImg.src = `sprite/${roleToSprite(roleAReveler)}`;
+            // Animation identique à la page aide, couleur selon joueur
+            flipCarte(el);
+        }
+
+        // Gestion des votes
+        const badge = el.querySelector(".vote-badge");
+        let nbVotes = 0;
+        if (etat.votesLoups && etat.monRole === "loup-garou") {
+            nbVotes = Object.values(etat.votesLoups).filter(
+                (cid) => cid === j.id,
+            ).length;
+        } else if (etat.phase === "vote" && etat.votesJour) {
+            nbVotes = Object.values(etat.votesJour).filter(
+                (cid) => cid === j.id,
+            ).length;
+        }
+
+        if (nbVotes > 0) {
+            badge.textContent = nbVotes;
+            badge.style.display = "flex";
+            animateScale(badge);
+        } else {
+            badge.style.display = "none";
+        }
     });
 }
 
-// ── Sélection de cible ────────────────────────────────────
-function selectionnerCible(id, div) {
-    if (!etat) return;
+function cliquerJoueur(id) {
+    if (!etatActuel) return;
+    // Ne peut pas se cibler soi-même
+    if (id === monPseudo) return;
+    // Seul le chasseur mort peut interagir pendant sa phase
+    const joueurVivant = etatActuel.vivant ?? true;
+    if (!joueurVivant && !(etatActuel.phase === "chasseur" && etatActuel.monRole === "chasseur")) return;
+    // Phases non-interactives : clic ignoré
+    if (!estMonTour(etatActuel)) return;
 
-    // 🏹 Mode Cupidon
-    if (etat.phase === "nuit-cupidon" && monRole === "cupidon") {
-        modeSelection = "cupidon";
+    const joueur = etatActuel.joueurs.find((j) => j.id === id);
+    if (!joueur || (!joueur.vivant && etatActuel.phase !== "chasseur")) return;
 
-        const idx = ciblesAmants.indexOf(id);
-        if (idx !== -1) {
-            ciblesAmants.splice(idx, 1);
-            div.classList.remove("cible-vote");
-        } else if (ciblesAmants.length < 2) {
-            ciblesAmants.push(id);
-            div.classList.add("cible-vote");
+    if (
+        etatActuel.phase === "nuit-cupidon" &&
+        etatActuel.monRole === "cupidon"
+    ) {
+        if (selections.includes(id)) {
+            selections = selections.filter((sid) => sid !== id);
+        } else if (selections.length < 2) {
+            selections.push(id);
         }
-
-        const btn = document.querySelector("#actions-zone .btn-action");
-        if (btn) btn.textContent = `Lier les amants (${ciblesAmants.length}/2)`;
-        return;
+    } else {
+        selections = [id];
     }
-
-    // ☠️ Mode poison (sorcière)
-    if (modeSelection === "poison") {
-        modeSelection = "normal";
-
-        rendreSelectionnable(false);
-        document
-            .querySelectorAll(".carte-joueur")
-            .forEach((c) => c.classList.remove("cible-vote"));
-
-        div.classList.add("cible-vote");
-
-        (async () => {
-            try {
-                await API.sorciere(false, id);
-            } catch (e) {
-                afficherNarrateur("Erreur réseau (empoisonnement)");
-            } finally {
-                div.classList.remove("cible-vote");
-            }
-        })();
-
-        return;
-    }
-
-    // 🎯 Mode normal
-    document
-        .querySelectorAll(".carte-joueur")
-        .forEach((c) => c.classList.remove("cible-vote"));
-
-    cibleSelectionnee = id;
-    div.classList.add("cible-vote");
-}
-function rendreSelectionnable(actif) {
-    document
-        .querySelectorAll(".carte-joueur:not(.moi):not(.mort)")
-        .forEach((c) => {
-            c.classList.toggle("selectionnable", actif);
-        });
+    traiterMiseAJour(etatActuel); // Refresh UI
 }
 
-// ── Narrateur ─────────────────────────────────────────────
-let narrTimer = null;
-function afficherNarrateur(texte, duree = 5000) {
-    const overlay = document.getElementById("narrateur-overlay");
-    document.getElementById("narr-texte").textContent = texte;
-    overlay.classList.add("visible");
-    ajouterMessageChat("Narrateur", texte, "narrateur");
-    clearTimeout(narrTimer);
-    narrTimer = setTimeout(() => overlay.classList.remove("visible"), duree);
-}
-
-// ── Chat ──────────────────────────────────────────────────
-function ajouterMessageChat(auteur, texte, type = "") {
-    const zone = document.getElementById("chat-messages");
-    const msg = document.createElement("div");
-    msg.className = "msg " + type;
-    msg.innerHTML = `<div class="msg-auteur">${auteur}</div><div class="msg-texte">${texte}</div>`;
-    zone.appendChild(msg);
-    zone.scrollTop = zone.scrollHeight;
-}
-
-document.getElementById("chat-send").addEventListener("click", envoyerMessage);
-document.getElementById("chat-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") envoyerMessage();
-});
-
-async function envoyerMessage() {
-    const input = document.getElementById("chat-input");
-    const texte = input.value.trim();
-    if (!texte) return;
-
-    input.value = "";
-
-    if (etat && etat.monPseudo) {
-        ajouterMessageChat(etat.monPseudo, texte, "moi");
-    }
-
-    try {
-        await API.chat(texte);
-    } catch (e) {
-        console.error("Erreur chat :", e);
-    }
-}
-
-// ── Phase ─────────────────────────────────────────────────
-const MESSAGES_PHASE = {
-    distribution: "Les rôles ont été distribués. Chacun découvre sa destinée…",
-    "nuit-cupidon": "Cupidon se réveille et tend son arc vers deux âmes…",
-    "nuit-voyante":
-        "La Voyante ouvre les yeux dans la nuit et scrute les ombres…",
-    "nuit-loups": "Les Loups-Garous se réveillent et choisissent leur proie…",
-    "nuit-sorciere": "La Sorcière consulte ses potions à la lueur de la lune…",
-    jour: "L'aube se lève sur le village. Les habitants découvrent les victimes de la nuit…",
-    vote: "Le village se réunit. Il est temps de voter !",
-    chasseur:
-        "Le Chasseur rend son dernier souffle… mais il peut encore tirer !",
-    fin: null,
-};
-
-function mettreAJourPhase(nouvelEtat) {
-    if (!etat) return;
-    const phase = nouvelEtat.phase;
-    const tour = nouvelEtat.tour ?? 1;
-
-    const estNuit = phase.startsWith("nuit") || phase === "distribution";
-    document.body.className = estNuit ? "nuit" : "jour";
-    document.getElementById("phase-icon").textContent = estNuit ? "🌙" : "☀️";
-
-    let label = estNuit ? `Nuit ${tour}` : `Jour ${tour}`;
-    if (phase === "vote") label = `Vote — Jour ${tour}`;
-    if (phase === "fin") label = "Fin de partie";
-    document.getElementById("phase-label").textContent = label;
-
-    if (phase !== _lastNarratedPhase) {
-        const msg = MESSAGES_PHASE[phase];
-        if (msg) {
-            afficherNarrateur(msg);
-        }
-        _lastNarratedPhase = phase;
-    }
-
-    rendreActionsZone(nouvelEtat);
-    rendrePanneauRole(nouvelEtat);
-
-    const selectionActive =
-        phase === "vote" ||
-        (phase === "nuit-loups" && monRole === "loup-garou") ||
-        (phase === "nuit-voyante" && monRole === "voyante") ||
-        (phase === "nuit-cupidon" && monRole === "cupidon") ||
-        (phase === "chasseur" && monRole === "chasseur") ||
-        (phase === "nuit-sorciere" && monRole === "sorciere");
-    rendreSelectionnable(selectionActive);
-}
-
-// ── Actions zone ──────────────────────────────────────────
-function rendreActionsZone(e) {
+function renderActions(etat) {
     const zone = document.getElementById("actions-zone");
     zone.innerHTML = "";
 
-    if (e.phase === "distribution") {
-        zone.appendChild(
-            creerBouton("J'ai vu mon rôle ✓", async () => {
-                await API.pret();
-            }),
-        );
-    }
-
-    if (e.phase === "nuit-cupidon" && monRole === "cupidon") {
-        ciblesAmants = [];
-        zone.appendChild(
-            creerBouton("Lier les amants (0/2)", async () => {
-                if (ciblesAmants.length !== 2) return;
-                await API.cupidon(ciblesAmants[0], ciblesAmants[1]);
-                ciblesAmants = [];
-                document
-                    .querySelectorAll(".carte-joueur")
-                    .forEach((c) => c.classList.remove("cible-vote"));
-            }),
-        );
-    }
-
-    if (e.phase === "nuit-voyante" && monRole === "voyante") {
-        zone.appendChild(
-            creerBouton("Inspecter ce joueur", async () => {
-                if (!cibleSelectionnee) return;
-                try {
-                    await API.voyante(cibleSelectionnee);
-                } catch (e) {
-                    afficherNarrateur("Erreur voyante");
-                }
-                cibleSelectionnee = null;
-            }),
-        );
-    }
-
-    if (e.phase === "nuit-loups" && monRole === "loup-garou") {
-        zone.appendChild(
-            creerBouton("Confirmer ma cible", async () => {
-                if (!cibleSelectionnee) return;
-                try {
-                    await API.loupVote(cibleSelectionnee);
-                } catch (e) {
-                    afficherNarrateur("Erreur vote des loups");
-                }
-                cibleSelectionnee = null;
-            }),
-        );
-    }
-
-    if (e.phase === "jour" && e.estHote) {
-        zone.appendChild(
-            creerBouton("Lancer le vote", async () => {
-                await API.demarrerVote();
-            }),
-        );
-    }
-
-    if (e.phase === "vote") {
-        zone.appendChild(
-            creerBouton("Confirmer mon vote", async () => {
-                if (!cibleSelectionnee) return;
-                try {
-                    await API.vote(cibleSelectionnee);
-                } catch (e) {
-                    console.error(e);
-                    afficherNarrateur("Erreur réseau pendant le vote");
-                }
-                cibleSelectionnee = null;
-            }),
-        );
-    }
-
-    if (e.phase === "chasseur" && monRole === "chasseur") {
-        zone.appendChild(
-            creerBouton(
-                "Tirer sur ce joueur",
-                async () => {
-                    if (!cibleSelectionnee) return;
-                    try {
-                        await API.chasseurTire(cibleSelectionnee);
-                    } catch (e) {
-                        afficherNarrateur("Erreur tir");
-                    }
-                    cibleSelectionnee = null;
-                },
-                "danger",
-            ),
-        );
-    }
-}
-
-// ── Panneau rôle spécial ──────────────────────────────────
-function rendrePanneauRole(e) {
-    const panneau = document.getElementById("panneau-role");
-
-    if (e.resultatVoyante && monRole === "voyante") {
-        if (e.resultatVoyante !== _lastVoyanteResult) {
-            _lastVoyanteResult = e.resultatVoyante;
-            afficherPanneau(
-                "Révélation de la Voyante",
-                `Ce joueur est : ${e.resultatVoyante}`,
-                [
-                    {
-                        label: "Compris",
-                        fn: () => panneau.classList.remove("visible"),
-                    },
-                ],
-            );
-        }
-        return;
-    } else {
-        _lastVoyanteResult = null;
-    }
-
-    if (e.phase === "nuit-sorciere" && monRole === "sorciere") {
-        if (e.tour !== _lastSorciereTour) {
-            _lastSorciereTour = e.tour;
-            const btns = [];
-            if (e.potionVie && e.victime) {
-                btns.push({
-                    label: `💚 Sauver ${e.victime}`,
-                    fn: async () => {
-                        try {
-                            await API.sorciere(true, null);
-                        } catch (e) {
-                            afficherNarrateur("Erreur potion de vie");
-                        }
-                        panneau.classList.remove("visible");
-                    },
-                });
-            }
-            if (e.potionMort) {
-                btns.push({
-                    label: "☠️ Empoisonner…",
-                    fn: () => {
-                        panneau.classList.remove("visible");
-                        modeSelection = "poison";
-                        rendreSelectionnable(true);
-                    },
-                });
-            }
-            btns.push({
-                label: "Passer",
-                fn: async () => {
-                    await API.sorciere(false, null);
-                    panneau.classList.remove("visible");
-                },
-            });
-            const desc = e.victime
-                ? `La victime de cette nuit est : ${e.victime}`
-                : "Personne n'a été attaqué cette nuit.";
-            afficherPanneau("Vos potions, Sorcière", desc, btns);
-        }
-        return;
-    } else {
-        _lastSorciereTour = -1;
-    }
-
-    if (e.phase === "nuit-cupidon" && monRole === "cupidon") {
-        panneau.classList.remove("visible");
+    if (etat.phase === "distribution") {
+        addBtn("Je suis prêt", () => API.pret());
         return;
     }
 
-    if (e.phase === "fin") {
-        const camp = {
-            villageois: "Les Villageois",
-            loups: "Les Loups-Garous",
-            amants: "Les Amants",
-            annule: "Partie annulée par l'hôte",
-        };
-        afficherPanneau(
-            e.vainqueur === "annule" ? "Partie annulée" : "Partie terminée",
-            camp[e.vainqueur] ?? e.vainqueur,
-            [
-                {
-                    label: "Retour au lobby",
-                    fn: () => {
-                        API.clearCode();
-                        API.arreterPolling();
-                        location.href = "lobby.html";
-                    },
-                },
-            ],
-        );
-        return;
+    if (etat.phase === "jour" && etat.estHote) {
+        addBtn("Lancer le vote du village", () => API.demarrerVote());
     }
 
-    panneau.classList.remove("visible");
-}
+    if (!etat.vivant && etat.phase !== "chasseur") return;
 
-function afficherPanneau(titre, desc, btns) {
-    document.getElementById("panneau-titre").textContent = titre;
-    document.getElementById("panneau-desc").textContent = desc;
-    const zone = document.getElementById("panneau-btns");
-    zone.innerHTML = "";
-    btns.forEach((b) =>
-        zone.appendChild(creerBouton(b.label, b.fn, b.danger ? "danger" : "")),
-    );
-    document.getElementById("panneau-role").classList.add("visible");
-}
+    const cible = selections[0];
 
-function creerBouton(label, fn, extra = "") {
-    const btn = document.createElement("button");
-    btn.className = "btn-action " + extra;
-    btn.textContent = label;
-    btn.addEventListener("click", fn);
-    return btn;
-}
-
-// ── Quitter la partie ─────────────────────────────────────
-document.getElementById("btnQuitter").addEventListener("click", async () => {
-    if (!confirm("Quitter la partie ?")) return;
-    try {
-        await API.quitter();
-        API.clearCode();
-        API.arreterPolling();
-        location.href = "lobby.html";
-    } catch (e) {
-        console.error("Erreur quitter :", e);
-        API.clearCode();
-        location.href = "lobby.html";
-    }
-});
-
-// ── Polling ───────────────────────────────────────────────
-API.on.phaseChange = (nouvelEtat) => {
-    etat = nouvelEtat;
-    monRole = nouvelEtat.monRole;
-
-    if (nouvelEtat.messages?.length) {
-        API.setDernierTs(nouvelEtat.messages.at(-1).ts);
-        nouvelEtat.messages.forEach((m) => {
-            if (m.auteur === etat.monPseudo) {
-                const lastMsg = document.querySelector(
-                    "#chat-messages > .msg:last-child",
+    switch (etat.phase) {
+        case "nuit-cupidon":
+            if (etat.monRole === "cupidon" && selections.length === 2) {
+                addBtn("Lier ces deux cœurs", () =>
+                    API.cupidon(selections[0], selections[1]),
                 );
-                if (lastMsg && lastMsg.classList.contains("moi")) {
-                    const lastMsgText =
-                        lastMsg.querySelector(".msg-texte").textContent;
-                    if (lastMsgText === m.texte) {
-                        return; // Don't add duplicate of optimistic message
-                    }
-                }
             }
-            const type = m.auteur === etat.monPseudo ? "moi" : "";
-            ajouterMessageChat(m.auteur, m.texte, type);
-        });
+            break;
+        case "nuit-voyante":
+            if (etat.monRole === "voyante" && cible && cible !== monPseudo) {
+                addBtn(`Observer ${getName(cible)}`, () => API.voyante(cible));
+            }
+            break;
+        case "nuit-petite-fille":
+            if (etat.monRole === "petite-fille") {
+                addBtn("Espionner (risque 1/3)", () => API.petiteFilleEspionne());
+                addBtn("Ne pas espionner", () => API.petiteFillePasser());
+            }
+            break;
+        case "nuit-loups":
+            if (etat.monRole === "loup-garou" && cible && cible !== monPseudo) {
+                addBtn(`Dévorer ${getName(cible)}`, () => API.loupVote(cible));
+            }
+            break;
+        case "nuit-sorciere":
+            if (etat.monRole === "sorciere") {
+                if (etat.victime && etat.potionVie) {
+                    addBtn(`Sauver ${getName(etat.victime)}`, () =>
+                        API.sorciere(true),
+                    );
+                }
+                if (cible && cible !== monPseudo && etat.potionMort) {
+                    addBtn(
+                        `Empoisonner ${getName(cible)}`,
+                        () => API.sorciere(false, cible),
+                        "danger",
+                    );
+                }
+                addBtn("Ne rien faire", () => API.sorciere(false));
+            }
+            break;
+        case "vote":
+            if (cible && cible !== monPseudo) {
+                addBtn(`Voter contre ${getName(cible)}`, () => API.vote(cible));
+            }
+            break;
+        case "chasseur":
+            if (etat.monRole === "chasseur" && cible && cible !== monPseudo) {
+                addBtn(
+                    `Abattre ${getName(cible)}`,
+                    () => API.chasseurTire(cible),
+                    "danger",
+                );
+            }
+            break;
     }
+}
 
-    document.getElementById("mon-role-badge").textContent = monRole
-        ? `Rôle : ${monRole}`
-        : "";
+function addBtn(text, onclick, cls = "") {
+    const btn = document.createElement("button");
+    btn.className = "btn-action " + cls;
+    btn.textContent = text;
+    btn.onclick = onclick;
+    document.getElementById("actions-zone").appendChild(btn);
+    animateScale(btn);
+}
 
-    detecterMorts(nouvelEtat.joueurs);
-    rendreCartes(nouvelEtat.joueurs);
-    mettreAJourPhase(nouvelEtat);
-};
+function getName(id) {
+    return etatActuel.joueurs.find((j) => j.id === id)?.nom || id;
+}
 
-API.on.fin = (nouvelEtat) => {
-    etat = nouvelEtat;
-    detecterMorts(nouvelEtat.joueurs);
-    rendreCartes(nouvelEtat.joueurs);
-    mettreAJourPhase(nouvelEtat);
-};
+function tr(phase) {
+    const trans = {
+        attente: "Attente",
+        distribution: "Distribution",
+        "nuit-cupidon": "Cupidon",
+        "nuit-voyante": "Voyante",
+        "nuit-petite-fille": "Petite Fille",
+        "nuit-loups": "Loups-Garous",
+        "nuit-sorciere": "Sorcière",
+        jour: "Réveil",
+        vote: "Vote du village",
+        chasseur: "Chasseur",
+        fin: "Fin de partie",
+        "loup-garou": "Loup-Garou",
+        villageois: "Villageois",
+        voyante: "Voyante",
+        sorciere: "Sorcière",
+        cupidon: "Cupidon",
+        "petite-fille": "Petite-fille",
+    };
+    return trans[phase] || phase;
+}
 
-API.demarrerPolling(500);
+function genererMessageNarrateur(etat) {
+    const monTour = (role) => etat.monRole === role && etat.vivant;
 
-window.addEventListener("resize", () => {
-    if (etat) rendreCartes(etat.joueurs);
-});
+    switch (etat.phase) {
+        case "distribution":
+            return "Les rôles sont distribués. Gardez votre secret...";
+        case "nuit-cupidon":
+            return monTour("cupidon")
+                ? "Choisissez deux joueurs qui seront liés à vie."
+                : "Cupidon décoche ses flèches...";
+        case "nuit-voyante":
+            return monTour("voyante")
+                ? "Sondez l'âme d'un habitant du village."
+                : "La Voyante sonde les âmes...";
+        case "nuit-petite-fille":
+            return monTour("petite-fille")
+                ? "Osez-vous espionner les loups cette nuit ? (1 chance sur 3 d'être repérée)"
+                : "La Petite Fille entrouvre les yeux...";
+        case "nuit-loups":
+            if (monTour("loup-garou")) {
+                return etat.alerteEspionnage
+                    ? "La Petite Fille vous observe... Designez votre proie avec prudence."
+                    : "Designez votre prochaine proie.";
+            }
+            return "La faim des Loups-Garous se fait entendre...";
+        case "nuit-sorciere":
+            return monTour("sorciere")
+                ? "Utiliserez-vous vos potions cette nuit ?"
+                : "La Sorcière prépare ses fioles...";
+        case "jour":
+            return "Le soleil se lève sur un village meurtri...";
+        case "vote":
+            return "Le village doit voter pour éliminer un suspect.";
+        case "chasseur":
+            return monTour("chasseur")
+                ? "Visez un joueur avant de trépasser !"
+                : "Le Chasseur va rendre son dernier souffle...";
+        case "fin": {
+            const v = etat.vainqueur;
+            let res = "Fin de la partie. ";
+            if (v === "loups")
+                res += "Les Loups-Garous ont dévoré tout le village !";
+            else if (v === "amants") res += "L'amour a triomphé ! (Amants)";
+            else if (v === "villageois")
+                res += "Le Village a exterminé tous les loups !";
+            else res += "La partie a été annulée.";
+            return res;
+        }
+        default:
+            return null;
+    }
+}
+
+function renderChat(messages) {
+    if (!messages) return;
+    const container = document.getElementById("chat-messages");
+    const lastTs = parseInt(container.lastElementChild?.dataset.ts || 0);
+
+    messages.forEach((m) => {
+        if (m.ts <= lastTs) return;
+        const div = document.createElement("div");
+        div.className = "msg" + (m.auteur === monPseudo ? " moi" : "");
+        div.dataset.ts = m.ts;
+
+        const auteurEl = document.createElement("span");
+        auteurEl.className = "msg-auteur";
+        auteurEl.textContent = m.auteur;
+
+        const texteEl = document.createElement("span");
+        texteEl.className = "msg-texte";
+        texteEl.textContent = m.texte;
+
+        div.appendChild(auteurEl);
+        div.appendChild(texteEl);
+        container.appendChild(div);
+    });
+    if (messages.length > 0) container.scrollTop = container.scrollHeight;
+}
+
+window.onload = initialiser;

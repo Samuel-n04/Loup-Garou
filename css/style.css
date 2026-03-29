@@ -56,7 +56,6 @@ html, body {
   position: fixed;
   top: 4vh; right: 8vw;
   width: 90px; height: 90px;
-  border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #fff9ec, #e8d5a3 60%, #c4a97a);
   box-shadow:
     0 0 30px 10px rgba(232,213,163,0.25),
@@ -195,7 +194,6 @@ header {
   border: none;
   cursor: pointer;
   padding: 0.9rem 2.2rem;
-  border-radius: 2px;
   transition: all 0.3s ease;
   text-decoration: none;
   display: inline-block;
@@ -261,7 +259,6 @@ header {
 .role-card {
   background: linear-gradient(160deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
   border: 1px solid rgba(232,213,163,0.06);
-  border-radius: 4px;
   padding: 1.25rem 0.75rem;
   text-align: center;
   cursor: pointer;
@@ -323,7 +320,6 @@ header {
   position: relative;
   background: linear-gradient(160deg, #0f1520, #0a0f18);
   border: 1px solid rgba(232,213,163,0.12);
-  border-radius: 6px;
   padding: 2.5rem;
   width: 100%; max-width: 480px;
   box-shadow: 0 40px 80px rgba(0,0,0,0.6);
@@ -363,7 +359,6 @@ header {
   width: 100%;
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(232,213,163,0.12);
-  border-radius: 3px;
   padding: 0.75rem 1rem;
   color: var(--moon);
   font-family: 'Crimson Text', serif;
@@ -384,7 +379,6 @@ header {
   padding: 0.6rem;
   background: transparent;
   border: 1px solid rgba(232,213,163,0.1);
-  border-radius: 3px;
   color: var(--text2);
   font-family: 'Cinzel', serif;
   font-size: 0.65rem;
@@ -405,7 +399,6 @@ header {
   padding: 0.4rem 0.9rem;
   background: transparent;
   border: 1px solid rgba(232,213,163,0.1);
-  border-radius: 20px;
   color: var(--text2);
   font-family: 'Crimson Text', serif;
   font-size: 0.85rem;

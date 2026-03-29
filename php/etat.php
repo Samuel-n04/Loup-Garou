@@ -32,6 +32,7 @@ $reponse = [
     "tour"      => $etat["tour"],
     "estHote"   => $etat["hote"] === $idJoueur,
     "monPseudo" => $idJoueur,
+    "alerteEspionnage" => $etat["alerteEspionnage"] ?? false,
     "joueurs"   => array_map(function ($j) {
         $data = [
             "id"     => $j["id"],
@@ -49,6 +50,7 @@ if ($joueur) {
     $reponse["monRole"]  = $joueur["role"];
     $reponse["vivant"]   = $joueur["vivant"];
     $reponse["estAmant"] = $joueur["amant"] !== null;
+    $reponse["monAmant"] = $joueur["amant"];
 
     if ($joueur["role"] === "sorciere") {
         $reponse["potionVie"]  = $joueur["potionVie"];
@@ -56,6 +58,13 @@ if ($joueur) {
     }
     if ($joueur["role"] === "chasseur") {
         $reponse["peutTirer"] = $joueur["peutTirer"];
+    }
+    if ($joueur["role"] === "loup-garou" && $etat["phase"] === "nuit-loups") {
+        $reponse["votesLoups"] = $etat["votesLoups"];
+    }
+    if ($etat["resultatVoyante"] && $joueur["role"] === "voyante") {
+        $reponse["resultatVoyante"] = $etat["resultatVoyante"];
+        $reponse["cibleVoyante"]    = $etat["cibleVoyante"] ?? null;
     }
 }
 
@@ -67,9 +76,14 @@ if ($etat["resultatVoyante"] && $joueur && $joueur["role"] === "voyante") {
     $reponse["resultatVoyante"] = $etat["resultatVoyante"];
 }
 
+if (isset($etat["resultatEspionnage"]) && $joueur && $joueur["role"] === "petite-fille") {
+    $reponse["resultatEspionnage"] = $etat["resultatEspionnage"];
+}
+
 if ($etat["phase"] === "vote") {
     $reponse["nbVotes"]   = count($etat["votesJour"]);
     $reponse["nbVivants"] = count(array_filter($etat["joueurs"], fn ($j) => $j["vivant"]));
+    $reponse["votesJour"] = $etat["votesJour"]; // Pour montrer qui a voté contre qui
 }
 
 // ── Messages chat ──────────────────────────────────────────
@@ -93,7 +107,7 @@ echo json_encode($reponse);
 
 function lireJSON(string $chemin): ?array
 {
-    $lockPath = $chemin . ".lock";
+    $lockPath = str_replace(".json", ".lock", $chemin);
     // Créer le fichier de verrou s'il n'existe pas, sans le tronquer.
     // Le @ supprime les avertissements si le fichier existe déjà, ce qui est normal.
     @touch($lockPath); 

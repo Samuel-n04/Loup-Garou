@@ -1,6 +1,5 @@
 :root {
-    --card-w: 80px;
-    --card-h: 80px;
+    --card-size: 64px; /* 2× pixel art (sprites 32×32) */
 }
 
 *, *::before, *::after {
@@ -14,8 +13,153 @@ body {
     height: 100vh;
     overflow: hidden;
     display: grid;
-    grid-template-columns: 1fr 320px;
+    grid-template-columns: 1fr 350px;
     grid-template-rows: 48px 1fr;
+    transition: background-color 2s ease;
+}
+
+#sidebar {
+    grid-row: 2;
+    grid-column: 2;
+    border-left: 1px solid #ccc;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: rgba(0,0,0,0.1);
+}
+
+#liste-vivants {
+    flex: 0 0 auto;
+    max-height: 40%;
+    overflow-y: auto;
+    border-bottom: 1px solid #ccc;
+    padding: 10px;
+}
+
+.sidebar-header {
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    opacity: 0.8;
+}
+
+#joueurs-container .ligne-joueur {
+    font-size: 13px;
+    padding: 4px 8px;
+    margin-bottom: 4px;
+    background: rgba(255,255,255,0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#joueurs-container .ligne-joueur.mort {
+    opacity: 0.5;
+    text-decoration: line-through;
+    color: #e74c3c;
+}
+
+#chat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+
+/* ── Nuit ── */
+body.nuit {
+    background-color: #0d0d1a;
+    color: #c8c8d8;
+}
+body.nuit #topbar {
+    background: #12122a;
+    border-color: #2a2a4a;
+    color: #c8c8d8;
+}
+body.nuit #topbar button {
+    background: #1e1e3a;
+    border-color: #3a3a5a;
+    color: #c8c8d8;
+}
+body.nuit #sidebar {
+    background: #10101f;
+    border-color: #2a2a4a;
+}
+body.nuit #liste-vivants,
+body.nuit #chat-header,
+body.nuit #chat-input-zone {
+    border-color: #2a2a4a;
+}
+body.nuit #chat-input {
+    background: #1a1a30;
+    border-color: #2a2a4a;
+    color: #c8c8d8;
+}
+body.nuit #chat-send {
+    background: #1e1e3a;
+    border-color: #3a3a5a;
+    color: #c8c8d8;
+}
+body.nuit #narrateur-overlay {
+    background: #12122a;
+    border-color: #2a2a4a;
+    color: #e0e0f0;
+}
+body.nuit .btn-action {
+    background: #1e1e3a;
+    border-color: #4a4a7a;
+    color: #c8c8d8;
+}
+body.nuit .btn-action:hover {
+    background: #2a2a4a;
+}
+body.nuit .btn-action.danger {
+    border-color: #8b2020;
+    color: #e05050;
+}
+body.nuit .btn-action.danger:hover {
+    background: #8b2020;
+    color: #fff;
+}
+body.nuit .msg-auteur { color: #8888cc; }
+
+/* ── Jour ── */
+body.jour {
+    background-color: #f0e8d0;
+    color: #2c2c1e;
+}
+body.jour #topbar {
+    background: #e8dfc4;
+    border-color: #c8b890;
+}
+body.jour #topbar button {
+    background: #e0d6b8;
+    border-color: #b8a070;
+    color: #2c2c1e;
+}
+body.jour #topbar button:hover {
+    background: #cfc49e;
+}
+body.jour #sidebar {
+    background: #ede4ca;
+    border-color: #c8b890;
+}
+body.jour #liste-vivants,
+body.jour #chat-header,
+body.jour #chat-input-zone {
+    border-color: #c8b890;
+}
+body.jour #chat-input {
+    background: #faf5e8;
+    border-color: #c8b890;
+    color: #2c2c1e;
+}
+body.jour #narrateur-overlay {
+    background: #faf5e8;
+    border-color: #a89060;
+    color: #2c2c1e;
 }
 
 /* ── Topbar ── */
@@ -28,10 +172,152 @@ body {
     border-bottom: 1px solid #ccc;
 }
 
+#topbar button {
+    border: 1px solid #999;
+    background: #e8e8e8;
+    color: #222;
+    font-size: 11px;
+    font-family: Georgia, serif;
+    padding: 4px 12px;
+    cursor: pointer;
+}
+#topbar button:hover {
+    background: #d0d0d0;
+}
+
 #tour-info {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+/* ── Cartes ── */
+.carte-joueur {
+    position: absolute;
+    width: var(--card-size);
+    height: var(--card-size);
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    transition: left 0.5s cubic-bezier(0.25, 1, 0.5, 1),
+                top  0.5s cubic-bezier(0.25, 1, 0.5, 1),
+                opacity 0.3s ease;
+    z-index: 10;
+    perspective: 800px;
+}
+
+.carte-joueur .pseudo {
+    position: absolute;
+    top: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.6);
+    padding: 2px 6px;
+    font-size: 12px;
+    color: #fff;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.carte-inner {
+    position: relative;
+    width: var(--card-size);
+    height: var(--card-size);
+    /* pas de transition CSS : le flip est géré intégralement par flipCarte() en JS */
+    transform-style: preserve-3d;
+}
+
+
+.flipped .carte-inner {
+    transform: rotateY(180deg);
+}
+
+    .face {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+        overflow: hidden;
+        /* removed solid border for cleaner look */
+        border: none;
+    }
+
+.front { 
+    background: #2c3e50; 
+    border: 2px solid #34495e;
+}
+
+.back { 
+    background: #fdfdfd; 
+    transform: rotateY(180deg); 
+    border: 2px solid #ddd;
+}
+
+.face img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    /* rendu pixel-perfect pour le pixel art */
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+
+.carte-joueur.mort { opacity: 0.5; filter: grayscale(0.8); }
+
+/* Propre carte : épinglée en bas au centre, z-index élevé, bordure dorée */
+.carte-joueur.ma-carte {
+    z-index: 100;
+    cursor: default;
+}
+.carte-joueur.ma-carte .carte-inner {
+    outline: 2px solid rgba(255, 215, 0, 0.8);
+}
+
+.carte-joueur.selected .carte-inner {
+    outline: 3px solid #f1c40f;
+}
+
+/* Cible valide : lift au hover, sans changement de couleur */
+.carte-joueur.cible-valide:hover .carte-inner {
+    transform: translateY(-4px);
+}
+
+/* Cible invalide : opacité réduite, curseur interdit */
+.carte-joueur.cible-invalide {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* Allié (amant, loup identifié) : outline blanc discret */
+.carte-joueur.est-allie .carte-inner {
+    outline: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+/* Victime de nuit (vue par la sorcière) : opacité pulsante */
+.carte-joueur.est-victime .carte-inner {
+    animation: pulse-victime 1.2s ease-in-out infinite;
+}
+@keyframes pulse-victime {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+}
+
+.vote-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #e74c3c;
+    color: white;
+    width: 22px;
+    height: 22px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    border: 2px solid #fff;
+    z-index: 5;
 }
 
 /* ── Arène ── */
@@ -40,88 +326,30 @@ body {
     overflow: hidden;
 }
 
-#table-ronde { display: none; }
-
-/* ── Cartes ── */
-.carte-joueur {
+/* Dos de carte en grand au centre de l'arène, même couleur que le fond */
+#arene::before {
+    content: '';
     position: absolute;
-    width: var(--card-w);
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 2px;
+    top: 50%;
+    left: 50%;
     transform: translate(-50%, -50%);
-    cursor: default;
-    transition: left 0.6s cubic-bezier(0.22, 1, 0.36, 1), top 0.6s cubic-bezier(0.22, 1, 0.36, 1), transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.carte-joueur.mort { opacity: 0.3; }
-
-.carte-joueur .carte-img {
-    width: var(--card-w);
-    height: var(--card-h);
-    overflow: hidden;
-    position: relative;
-}
-
-.carte-joueur .carte-img img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
+    width: 384px;   /* 12× — multiple entier de 32px */
+    height: 384px;
+    background-image: url('../sprite/backCard.png');
+    background-size: 100% 100%;
     image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
+    opacity: 0.06;
+    pointer-events: none;
+    z-index: 0;
 }
 
-/* Styles pour l'animation de flip */
-.flip-face {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-}
-.flip-back {
-    transform: rotateY(180deg);
-}
-
-
-.carte-joueur .carte-img .dos {
-    width: 100%;
-    height: 100%;
-    background: #ddd;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    image-rendering: pixelated;
-}
-
-.carte-joueur .pseudo {
-    font-size: 10px;
-    white-space: nowrap;
-    max-width: 110px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.carte-joueur.cible-vote .carte-img { outline: 2px solid red; }
-.carte-joueur.selectionnable { cursor: pointer; }
-.carte-joueur .vote-badge {
-    position: absolute;
-    top: -4px;
-    right: -4px;
-    background: red;
-    color: #fff;
-    font-size: 9px;
-    padding: 1px 3px;
-    display: none;
-}
-.carte-joueur.cible-vote .vote-badge { display: block; }
+#table-ronde { display: none; }
 
 /* ── Narrateur ── */
 #narrateur-overlay {
+
     position: absolute;
     top: 50%;
     left: 50%;
@@ -235,18 +463,28 @@ body {
 
 /* ── Responsive tablette (≤ 900px) ── */
 @media (max-width: 900px) {
-    :root { --card-w: 64px; --card-h: 64px; }
-    body { grid-template-columns: 1fr; grid-template-rows: 48px 1fr 200px; }
-    #chat { border-left: none; border-top: 1px solid #ccc; grid-row: 3; }
+    :root { --card-size: 64px; }
+    body { grid-template-columns: 1fr; grid-template-rows: 48px 1fr 250px; }
+    #sidebar {
+        grid-column: 1;
+        grid-row: 3;
+        border-left: none;
+        border-top: 1px solid #ccc;
+        flex-direction: row;
+    }
+    #liste-vivants {
+        flex: 1;
+        border-bottom: none;
+        border-right: 1px solid #ccc;
+    }
+    #chat { flex: 1.5; }
     #topbar { grid-column: 1; }
 }
 
 /* ── Responsive mobile (≤ 600px) ── */
 @media (max-width: 600px) {
-    :root { --card-w: 50px; --card-h: 50px; }
+    :root { --card-size: 32px; } /* 1× pixel-perfect sur mobile */
     body { grid-template-rows: 40px 1fr 180px; }
     #topbar { padding: 0 10px; }
-    .carte-joueur .pseudo { font-size: 8px; }
+    .carte-joueur .pseudo { font-size: 8px; top: -18px; }
 }
-
-
