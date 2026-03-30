@@ -1,3 +1,12 @@
+<?php
+session_start();
+
+// Redirect to login if the user is not authenticated
+if (!isset($_SESSION['pseudo'])) {
+    header('Location: login.html');
+    exit;
+}
+?>
 <!doctype html>
 <html lang="fr">
     <head>
@@ -8,21 +17,21 @@
     </head>
     <body>
         <div style="position: fixed; top: 16px; left: 16px">
-            <a href="index.html">← Retour</a>
+            <a href="index.php">← Retour</a>
         </div>
 
         <div id="container">
             <h1>Aide</h1>
 
-            <!-- PARTIE 1 : Fonctionnement du site -->
+            <!-- PART 1: How the site works -->
             <section id="fonctionnement">
                 <h2>Comment ça marche ?</h2>
-                <p><!-- TODO : explication du fonctionnement du site --></p>
+                <p><!-- TODO: add explanation of how the site works --></p>
             </section>
 
             <hr />
 
-            <!-- PARTIE 2 : Les cartes -->
+            <!-- PART 2: Cards -->
             <section id="cartes">
                 <h2>Les cartes</h2>
 

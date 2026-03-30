@@ -10,7 +10,16 @@ if (!$pseudo) {
     exit;
 }
 
-// ── Vérifier qu'il n'a pas déjà une partie active ─────────
+// Validate the CSRF token to prevent cross-site request forgery.
+// See php/csrf.php for an explanation of how CSRF works.
+$csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+if (!isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $csrfToken)) {
+    http_response_code(403);
+    echo json_encode(["erreur" => "CSRF token invalid"]);
+    exit;
+}
+
+// Check if the user already has an active game
 $indexFichier = "../data/parties.json";
 if (file_exists($indexFichier)) {
     $index = json_decode(file_get_contents($indexFichier), true) ?? [];
@@ -66,7 +75,7 @@ $etat = [
 $fichierPartie = "../data/partie_$code.json";
 $lockPartie    = "../data/partie_$code.lock";
 
-$lock = fopen($lockPartie, "w");
+$lock = fopen($lockPartie, "c");
 flock($lock, LOCK_EX);
 file_put_contents($fichierPartie, json_encode($etat, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 flock($lock, LOCK_UN);
@@ -86,6 +95,7 @@ echo json_encode(["ok" => true, "code" => $code, "public" => $estPublique]);
 
 function genererCode(): string
 {
+    // Exclude characters that look similar (O/0, I/1) to avoid confusion
     $chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     do {
         $code = "";
@@ -99,7 +109,7 @@ function genererCode(): string
 function mettreAJourIndex(string $code, array $infos): void
 {
     $fichier = "../data/parties.json";
-    $lock    = fopen("../data/parties.lock", "w");
+    $lock    = fopen("../data/parties.lock", "c");
     flock($lock, LOCK_EX);
     $index = file_exists($fichier)
         ? json_decode(file_get_contents($fichier), true) ?? []

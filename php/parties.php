@@ -1,7 +1,7 @@
 <?php
 
 // ============================================================
-//  parties.php — Liste les parties disponibles
+//  parties.php — Lists available public games
 // ============================================================
 
 session_start();
@@ -23,13 +23,13 @@ if (!file_exists($indexFichier)) {
     exit;
 }
 
-// On verrouille l'index pour le lire et le nettoyer si besoin
-$indexLock = fopen($indexLockF, "w");
+// Lock the index file for reading and potential cleanup
+$indexLock = fopen($indexLockF, "c");
 flock($indexLock, LOCK_EX);
 
 $index = json_decode(file_get_contents($indexFichier), true) ?? [];
 
-// Nettoyer les parties fantômes (fichier supprimé mais encore dans l'index)
+// Remove ghost entries: the index still references a game whose file was deleted
 $modifie = false;
 foreach ($index as $code => $infos) {
     if (!file_exists("../data/partie_$code.json")) {
@@ -37,13 +37,43 @@ foreach ($index as $code => $infos) {
         $modifie = true;
     }
 }
+
+// Clean up orphan game files: files that are no longer in the index (game ended)
+// and are old enough that all clients have had time to read the final state.
+// We wait 60 seconds before deleting to avoid a race condition where a client
+// is still polling etat.php for the "fin" phase result.
+foreach (glob("../data/partie_*.json") as $fichier) {
+    // Skip recently modified files — a client might still be reading them
+    if (time() - filemtime($fichier) < 60) {
+        continue;
+    }
+    // Extract the game code from the filename (e.g. "partie_ABC123.json" -> "ABC123")
+    if (!preg_match('/partie_([A-Z0-9]{6})\.json$/', $fichier, $matches)) {
+        continue;
+    }
+    $fileCode = $matches[1];
+    // Only delete if NOT in the index (meaning the game has ended and was removed)
+    if (isset($index[$fileCode])) {
+        continue;
+    }
+    $gameData = @json_decode(file_get_contents($fichier), true);
+    if ($gameData && $gameData['phase'] === 'fin') {
+        unlink($fichier);
+        $lockFile = "../data/partie_$fileCode.lock";
+        if (file_exists($lockFile)) {
+            unlink($lockFile);
+        }
+        $modifie = true;
+    }
+}
+
 if ($modifie) {
     file_put_contents($indexFichier, json_encode($index, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 }
 flock($indexLock, LOCK_UN);
 fclose($indexLock);
 
-// Retourner uniquement les parties publiques en attente
+// Return only public games that are still in the waiting phase
 $publiques = array_values(array_filter(
     $index,
     fn ($p) =>

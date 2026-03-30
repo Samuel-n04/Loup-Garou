@@ -15,11 +15,11 @@ if (!$mail || !$mdp) {
 $fichierUsers = '../data/users.json';
 $lockUsers    = '../data/users.lock';
 
-$lock = fopen($lockUsers, 'r');
-if (!$lock) {
-    @touch($lockUsers);
-    $lock = fopen($lockUsers, 'r');
-}
+// Open (or create) the lock file using 'c' mode:
+// 'c' creates the file if it doesn't exist without truncating it if it does.
+// This is safer than 'r' (fails if file missing) and 'w' (always truncates).
+// LOCK_SH = shared lock, multiple readers can hold it at the same time.
+$lock = fopen($lockUsers, 'c');
 flock($lock, LOCK_SH);
 
 if (file_exists($fichierUsers)) {

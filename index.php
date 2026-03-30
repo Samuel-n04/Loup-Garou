@@ -19,7 +19,7 @@ if (!isset($_SESSION['pseudo'])) {
     <body>
         <div style="position: fixed; top: 16px; right: 16px; display: flex; gap: 12px;">
             <span><?= htmlspecialchars($_SESSION['pseudo']) ?></span>
-            <a href="help.html">? Help</a>
+            <a href="help.php">? Help</a>
             <button id="btnDeconnexion">Se déconnecter</button>
         </div>
 

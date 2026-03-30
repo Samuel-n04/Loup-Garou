@@ -10,6 +10,15 @@ if (!$pseudo) {
     exit;
 }
 
+// Validate the CSRF token to prevent cross-site request forgery.
+// See php/csrf.php for an explanation of how CSRF works.
+$csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+if (!isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $csrfToken)) {
+    http_response_code(403);
+    echo json_encode(["erreur" => "CSRF token invalid"]);
+    exit;
+}
+
 $body = json_decode(file_get_contents("php://input"), true) ?? [];
 $code = trim($body["code"] ?? "");
 
@@ -22,7 +31,7 @@ if (!$code || !preg_match('/^[A-Z0-9]{6}$/', $code)) {
 $fichier = "../data/partie_$code.json";
 $lock    = "../data/partie_$code.lock";
 
-// Vérifier que c'est bien l'hôte
+// Verify that the requester is the game host
 if (file_exists($fichier)) {
     $etat = json_decode(file_get_contents($fichier), true);
     if ($etat && $etat["hote"] !== $pseudo) {
@@ -32,7 +41,7 @@ if (file_exists($fichier)) {
     }
 }
 
-// Supprimer les fichiers de la partie
+// Delete game files
 if (file_exists($fichier)) {
     unlink($fichier);
 }
@@ -40,9 +49,9 @@ if (file_exists($lock)) {
     unlink($lock);
 }
 
-// Retirer de l'index
+// Remove from the index
 $indexFichier = "../data/parties.json";
-$indexLock    = fopen("../data/parties.lock", "w");
+$indexLock    = fopen("../data/parties.lock", "c");
 flock($indexLock, LOCK_EX);
 if (file_exists($indexFichier)) {
     $index = json_decode(file_get_contents($indexFichier), true) ?? [];

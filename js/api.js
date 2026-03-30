@@ -1,13 +1,25 @@
 // ============================================================
-//  api.js — Couche réseau côté client
-//  Le code de partie est stocké en sessionStorage
+//  api.js — Client-side network layer
+//  The game code is stored in sessionStorage so it persists
+//  across page reloads (but not across browser tabs).
 // ============================================================
 
 let _phaseActuelle = null;
 let _pollingTimer = null;
 let _dernierTs = 0;
 
-// ── Code de partie ────────────────────────────────────────
+// ── CSRF Protection ───────────────────────────────────────
+// We fetch a CSRF token once at module load and attach it to
+// every POST request. This prevents malicious websites from
+// tricking the browser into sending game actions on your behalf.
+// See php/csrf.php for a full explanation.
+let _csrfToken = "";
+const _csrfReady = fetch("php/csrf.php")
+    .then((r) => r.json())
+    .then((d) => { _csrfToken = d.token; })
+    .catch(() => {});
+
+// ── Game code ─────────────────────────────────────────────
 export function setCode(code) {
     sessionStorage.setItem("codePartie", code);
 }
@@ -33,14 +45,14 @@ export const on = {
 };
 
 // ── Polling ───────────────────────────────────────────────
-export function demarrerPolling(intervalMs = 1500) {
+export function demarrerPolling(intervalMs = 2000) {
     if (_pollingTimer) return;
     _pollingTimer = setInterval(async () => {
         try {
             const etat = await getEtat();
             if (etat) _traiterEtat(etat);
         } catch (e) {
-            console.error("[polling] erreur :", e);
+            console.error("[polling] error:", e);
         }
     }, intervalMs);
 }
@@ -72,7 +84,7 @@ function _traiterEtat(etat) {
 
     on.phaseChange?.(etat);
     _phaseActuelle = etat.phase;
-    
+
     if (etat.phase === "fin") {
         arreterPolling();
         on.fin?.(etat);
@@ -80,10 +92,15 @@ function _traiterEtat(etat) {
 }
 
 // ── Actions ───────────────────────────────────────────────
+// All actions wait for the CSRF token to be ready before sending.
 async function action(data) {
+    await _csrfReady;
     const res = await fetch("php/action.php", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": _csrfToken,
+        },
         body: JSON.stringify({ ...data, code: getCode() }),
     });
     if (res.status === 401) {
@@ -99,10 +116,14 @@ async function requete(url, data = null) {
     const options = data
         ? {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRF-Token": _csrfToken,
+              },
               body: JSON.stringify(data),
           }
         : { method: "GET" };
+    await _csrfReady;
     const res = await fetch(url, options);
     if (res.status === 401) {
         location.href = "login.html";
@@ -113,7 +134,7 @@ async function requete(url, data = null) {
     return json;
 }
 
-// ── API publique ──────────────────────────────────────────
+// ── Public API ────────────────────────────────────────────
 export const rejoindre = () => action({ action: "rejoindre" });
 export const demarrer = () => action({ action: "demarrer" });
 export const pret = () => action({ action: "pret" });
@@ -132,7 +153,7 @@ export const finNuit = () => action({ action: "finNuit" });
 export const chat = (texte) => action({ action: "chat", texte });
 export const quitter = () => action({ action: "quitter" });
 
-// ── Endpoints séparés ─────────────────────────────────────
+// ── Separate endpoints ────────────────────────────────────
 export const creerPartie = (roles, joueurMax, estPublique) =>
     requete("php/creategame.php", { roles, joueurMax, public: estPublique });
 

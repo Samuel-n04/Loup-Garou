@@ -1,19 +1,36 @@
 import * as API from "./api.js";
 
-// Petite fonction utilitaire pour éviter les erreurs null
+// Small utility to safely add event listeners (avoids null errors)
 function on(id, event, handler) {
     const el = document.getElementById(id);
     if (el) el.addEventListener(event, handler);
 }
 
+// ── Public games polling ──────────────────────────────────
+// When the user is on the lobby screen (not in a game), we
+// periodically refresh the list of available public games
+// so new games appear automatically without a page reload.
+let _publicGamesTimer = null;
+
+function demarrerPollingParties() {
+    if (_publicGamesTimer) return; // already running
+    chargerPartiesPubliques();
+    _publicGamesTimer = setInterval(chargerPartiesPubliques, 3000);
+}
+
+function arreterPollingParties() {
+    clearInterval(_publicGamesTimer);
+    _publicGamesTimer = null;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
-    // ── Déconnexion ───────────────────────────────────────────
+    // ── Logout ────────────────────────────────────────────────
     on("btnDeconnexion", "click", async () => {
         await fetch("php/logout.php");
         location.href = "login.html";
     });
 
-    // ── Rejoindre avec un code (placeholder) ──────
+    // ── Join with a code (placeholder) ───────────────────────
     on("btnRejoindre", "click", () => {
         const input = document.getElementById("codeInput");
         const code = input ? input.value.trim() : "";
@@ -21,16 +38,17 @@ document.addEventListener("DOMContentLoaded", () => {
         alert("Parties privées pas encore disponibles.");
     });
 
-    // ── Au chargement ─────────────────────────────────────────
+    // ── On page load ──────────────────────────────────────────
     const codeExistant = API.getCode();
     if (codeExistant) {
         verifierPartieExistante(codeExistant);
     } else {
         afficherFormulaire();
-        chargerPartiesPubliques();
     }
 
-    // ── Polling ───────────────────────────────────────────────
+    // ── Game state polling ────────────────────────────────────
+    // Once inside a lobby, phaseChange fires on every poll.
+    // If the phase moved past "attente", the game started: redirect to game.html.
     API.on.phaseChange = (etat) => {
         if (etat.phase === "attente") {
             afficherLobbyPartie(etat);
@@ -39,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // ── Créer une partie ──────────────────────────────────────
+    // ── Create a game ─────────────────────────────────────────
     on("btnCreer", "click", async () => {
         const roles = [
             ...document.querySelectorAll("input[name='role']:checked"),
@@ -62,7 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // ── Rejoindre par code ────────────────────────────────────
+    // ── Join by code ──────────────────────────────────────────
     on("btnRejoindreCode", "click", async () => {
         const input = document.getElementById("inputCode");
         const code = input ? input.value.trim().toUpperCase() : "";
@@ -70,7 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
         await rejoindrePartie(code);
     });
 
-    // ── Démarrer (hôte) ───────────────────────────────────────
+    // ── Start game (host) ─────────────────────────────────────
     on("btnDemarrer", "click", async () => {
         try {
             await API.demarrer();
@@ -80,7 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // ── Annuler (hôte) ────────────────────────────────────────
+    // ── Cancel game (host) ────────────────────────────────────
     on("btnReset", "click", async () => {
         if (!confirm("Annuler la partie ?")) return;
         try {
@@ -88,13 +106,12 @@ document.addEventListener("DOMContentLoaded", () => {
             API.clearCode();
             API.arreterPolling();
             afficherFormulaire();
-            chargerPartiesPubliques();
         } catch (e) {
             document.getElementById("erreur-partie").textContent = e.message;
         }
     });
 
-    // ── Quitter (joueur) ──────────────────────────────────────
+    // ── Leave game (player) ───────────────────────────────────
     on("btnQuitterLobby", "click", async () => {
         if (!confirm("Quitter la partie ?")) return;
         try {
@@ -102,27 +119,25 @@ document.addEventListener("DOMContentLoaded", () => {
             API.clearCode();
             API.arreterPolling();
             afficherFormulaire();
-            chargerPartiesPubliques();
         } catch (e) {
             document.getElementById("erreur-partie").textContent = e.message;
         }
     });
 
-    // ── Quitter page ──────────────────────────────────────────
+    // ── Leave page ────────────────────────────────────────────
     on("btnQuitter", "click", () => {
         API.arreterPolling();
         location.href = "index.php";
     });
 });
 
-// ── Vérifier si la partie existe encore ────────
+// ── Check if the game still exists ───────────────────────
 async function verifierPartieExistante(code) {
     try {
         const res = await fetch(`php/etat.php?code=${code}&depuis=0`);
         if (!res.ok) {
             API.clearCode();
             afficherFormulaire();
-            chargerPartiesPubliques();
             return;
         }
         const etat = await res.json();
@@ -135,21 +150,24 @@ async function verifierPartieExistante(code) {
     } catch (e) {
         API.clearCode();
         afficherFormulaire();
-        chargerPartiesPubliques();
     }
 }
 
-// ── UI ─────────────────────────────────────────
+// ── UI helpers ────────────────────────────────────────────
 function afficherFormulaire() {
     document.getElementById("section-creer").hidden = false;
     document.getElementById("section-parties").hidden = false;
     document.getElementById("section-partie").hidden = true;
+    // Start auto-refreshing the public games list
+    demarrerPollingParties();
 }
 
 function afficherLobbyPartie(etat) {
     document.getElementById("section-creer").hidden = true;
     document.getElementById("section-parties").hidden = true;
     document.getElementById("section-partie").hidden = false;
+    // Stop refreshing the public list while we are inside a lobby
+    arreterPollingParties();
 
     const code = API.getCode();
     document.getElementById("code-partie").textContent = code;
@@ -175,13 +193,13 @@ function afficherLobbyPartie(etat) {
     }
 }
 
-// ── Parties publiques ─────────────────────────
+// ── Public games ──────────────────────────────────────────
 async function chargerPartiesPubliques() {
     try {
         const data = await API.listerParties();
         afficherPartiesPubliques(data.parties ?? []);
     } catch (e) {
-        console.error("Erreur chargement parties :", e);
+        console.error("Error loading public games:", e);
     }
 }
 
@@ -224,7 +242,7 @@ function afficherPartiesPubliques(parties) {
     });
 }
 
-// ── Rejoindre ─────────────────────────
+// ── Join game ─────────────────────────────────────────────
 async function rejoindrePartie(code) {
     try {
         API.setCode(code);

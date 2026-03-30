@@ -14,7 +14,7 @@ const ROLE_SPRITES = {
 // ---------------- State -----------------
 let etatActuel = null;
 let monPseudo = null;
-let selections = []; // Pour les rôles comme Cupidon qui demandent 2 cibles
+let selections = []; // For roles like Cupidon that require 2 targets
 
 // ---------------- Utils -----------------
 function escapeHTML(str) {
@@ -46,8 +46,8 @@ function animateScale(el) {
 }
 
 /**
- * Retourne une carte avec la même animation que la page aide :
- * spin 720° supplémentaires + flip 180°, puis snap propre.
+ * Flips a card with the same animation as the help page:
+ * an extra 720° spin plus a 180° flip, then snaps cleanly.
  */
 function flipCarte(el) {
     if (el.classList.contains("flipped") || el.dataset.animFlip === "1") return;
@@ -55,7 +55,7 @@ function flipCarte(el) {
 
     const inner = el.querySelector(".carte-inner");
     inner.style.transition = "transform 0.6s cubic-bezier(0.15, 0.85, 0.4, 1)";
-    inner.style.transform = "rotateY(900deg)"; // 180° flip + 720° spin décoratif
+    inner.style.transform = "rotateY(900deg)"; // 180° flip + 720° decorative spin
 
     inner.addEventListener("transitionend", function handler() {
         inner.removeEventListener("transitionend", handler);
@@ -70,7 +70,7 @@ function roleToSprite(role) {
     return ROLE_SPRITES[role] || "backCard.png";
 }
 
-// Retourne true si c'est au joueur local d'agir cette phase
+// Returns true if it is the local player's turn to act in the current phase
 function estMonTour(etat) {
     if (!etat.vivant) {
         return etat.phase === "chasseur" && etat.monRole === "chasseur";
@@ -87,18 +87,18 @@ function estMonTour(etat) {
     }
 }
 
-// Retourne true si le joueur j est une cible cliquable valide dans la phase courante
+// Returns true if player j is a valid clickable target in the current phase
 function cardCibleValide(etat, j) {
     if (j.id === monPseudo || !j.vivant) return false;
     switch (etat.phase) {
-        case "nuit-cupidon":  return etat.monRole === "cupidon";
-        case "nuit-voyante":  return etat.monRole === "voyante";
-        case "nuit-petite-fille": return false; // pas de ciblage, choix binaire espionner/passer
+        case "nuit-cupidon":      return etat.monRole === "cupidon";
+        case "nuit-voyante":      return etat.monRole === "voyante";
+        case "nuit-petite-fille": return false; // binary choice: spy or pass, no targeting
         case "nuit-loups":        return etat.monRole === "loup-garou";
         case "nuit-sorciere":     return etat.monRole === "sorciere" && !!etat.potionMort;
-        case "vote":          return !!etat.vivant;
-        case "chasseur":      return etat.monRole === "chasseur";
-        default:              return false;
+        case "vote":              return !!etat.vivant;
+        case "chasseur":          return etat.monRole === "chasseur";
+        default:                  return false;
     }
 }
 
@@ -120,7 +120,7 @@ async function initialiser() {
         monPseudo = etat.monPseudo;
         traiterMiseAJour(etat);
     } catch (e) {
-        console.error("Erreur initialisation :", e);
+        console.error("Initialization error:", e);
     }
 
     setupChat();
@@ -166,24 +166,24 @@ function traiterMiseAJour(etat) {
     const anciennePhase = etatActuel?.phase;
     etatActuel = etat;
 
-    // Background Nuit/Jour
+    // Day/Night background
     const estNuit =
         etat.phase.startsWith("nuit") || etat.phase === "distribution";
     document.body.className = estNuit ? "nuit" : "jour";
 
-    // Topbar
+    // Top bar
     document.getElementById("phase-label").textContent =
         `${tr(etat.phase)} - Tour ${etat.tour}`;
     document.getElementById("phase-icon").textContent = estNuit ? "Nuit" : "Jour";
     document.getElementById("mon-role-badge").textContent =
         `Rôle : ${etat.monRole || "..."}`;
 
-    // Reset des sélections si changement de phase
+    // Reset selections on phase change
     if (anciennePhase !== etat.phase) {
         selections = [];
     }
 
-    // Restaurer le vote déjà posé depuis l'état serveur (persistance entre les polls)
+    // Restore a vote already cast (persists across polls so the UI stays consistent)
     if (selections.length === 0) {
         if (etat.phase === "vote" && etat.votesJour?.[monPseudo]) {
             selections = [etat.votesJour[monPseudo]];
@@ -192,7 +192,7 @@ function traiterMiseAJour(etat) {
         }
     }
 
-    // Narrateur
+    // Narrator overlay
     const narrOverlay = document.getElementById("narrateur-overlay");
     const msg = genererMessageNarrateur(etat);
     if (msg) {
@@ -231,7 +231,7 @@ function renderJoueurs(etat) {
     const centerY = arene.clientHeight / 2;
     const radius = Math.min(centerX * 0.72, centerY * 0.72, 320);
 
-    // Ordre de distribution : les autres en premier, propre carte en dernier
+    // Deal order: other players first, local player's card last
     const autresJoueurs = etat.joueurs.filter((j) => j.id !== monPseudo);
     const dealOrder = [...autresJoueurs, ...etat.joueurs.filter((j) => j.id === monPseudo)];
 
@@ -240,9 +240,9 @@ function renderJoueurs(etat) {
         if (!idsActuels.includes(el.dataset.id)) el.remove();
     });
 
-    // Arc pour les autres joueurs : évite le bas (réservé à la carte du joueur)
+    // Arc for other players: avoids the bottom area (reserved for the local player's card)
     const N = autresJoueurs.length;
-    const GAP = Math.PI * 0.38; // ~68° de chaque côté du bas
+    const GAP = Math.PI * 0.38; // ~68° gap on each side of the bottom
     const arcDebut = Math.PI / 2 + GAP;
     const arcTotal = 2 * Math.PI - 2 * GAP;
 
@@ -272,15 +272,15 @@ function renderJoueurs(etat) {
             arene.appendChild(el);
         }
 
-        // --- POSITION CIBLE ---
+        // --- TARGET POSITION ---
         let targetX, targetY;
         if (j.id === monPseudo) {
-            // Propre carte : bas centre, au-dessus de la zone d'actions
+            // Local player's card: bottom center, above the action buttons
             targetX = centerX;
             targetY = arene.clientHeight - 95;
         } else {
             const idx = autresJoueurs.findIndex((a) => a.id === j.id);
-            // Répartition en arc, N=1 → centre haut, N>1 → de gauche à droite par le haut
+            // Spread along the arc: N=1 → top center, N>1 → left to right across the top
             const angle = arcDebut + (N > 1 ? idx / (N - 1) : 0.5) * arcTotal;
             targetX = centerX + Math.cos(angle) * radius;
             targetY = centerY + Math.sin(angle) * radius;
@@ -295,7 +295,7 @@ function renderJoueurs(etat) {
                 el.style.left = `${targetX}px`;
                 el.style.top = `${targetY}px`;
 
-                // Animation de distribution : la carte sort du centre et s'étale
+                // Deal animation: card flies out from the center and lands in place
                 const inner = el.querySelector(".carte-inner");
                 const anim = inner.animate(
                     [
@@ -305,7 +305,7 @@ function renderJoueurs(etat) {
                     ],
                     { duration: 520, easing: "ease-out" },
                 );
-                // Libère l'état de l'animation pour ne pas bloquer le flip CSS
+                // Cancel the animation object so it doesn't block the CSS flip
                 anim.onfinish = () => anim.cancel();
             }, 130 * dealIndex);
         } else {
@@ -313,7 +313,7 @@ function renderJoueurs(etat) {
             el.style.top = `${targetY}px`;
         }
 
-        // --- MISE À JOUR SYSTÉMATIQUE ---
+        // --- SYSTEMATIC UPDATE ---
         const pseudoEl = el.querySelector(".pseudo");
         pseudoEl.textContent = j.nom + (j.id === monPseudo ? " (Moi)" : "");
 
@@ -321,13 +321,13 @@ function renderJoueurs(etat) {
         el.classList.toggle("selected", selections.includes(j.id));
         el.classList.toggle("ma-carte", j.id === monPseudo);
 
-        // --- CLASSES D'ÉTAT PAR PHASE ---
+        // --- PHASE-BASED STATE CLASSES ---
         const monTour = estMonTour(etat);
         const valide = monTour && cardCibleValide(etat, j);
-        // Invalide = en jeu, pas moi, pas déjà sélectionné, mais pas ciblable
+        // Invalid = alive player who is not me and not a valid target
         const invalide = monTour && !valide && j.id !== monPseudo && j.vivant;
 
-        // Allié : amant révélé, ou loup ayant déjà voté (identifié par les clés de votesLoups)
+        // Ally: revealed lover, or wolf who already voted (identified by votesLoups keys)
         const estAmant = etat.monAmant === j.id;
         const estLoupVu = etat.monRole === "loup-garou"
             && etat.phase === "nuit-loups"
@@ -336,7 +336,7 @@ function renderJoueurs(etat) {
         const estLoupRevele = etat.monRole === "petite-fille"
             && etat.resultatEspionnage?.loups?.includes(j.id);
 
-        // Victime : la carte attaquée cette nuit, visible par la sorcière
+        // Victim: the wolf target this night, visible to the witch
         const estVictime = etat.monRole === "sorciere" && etat.victime === j.id;
 
         el.classList.toggle("cible-valide", valide && !selections.includes(j.id));
@@ -344,7 +344,7 @@ function renderJoueurs(etat) {
         el.classList.toggle("est-allie", estAmant || estLoupVu || estLoupRevele);
         el.classList.toggle("est-victime", estVictime);
 
-        // Logique de révélation des cartes
+        // Card reveal logic
         const estCibleVoyante =
             etat.monRole === "voyante" && etat.cibleVoyante === j.id;
         const estMonAmant = etat.monAmant === j.id;
@@ -365,11 +365,10 @@ function renderJoueurs(etat) {
                 ? etat.resultatVoyante || j.role
                 : (j.id === monPseudo ? etat.monRole : j.role);
             roleImg.src = `sprite/${roleToSprite(roleAReveler)}`;
-            // Animation identique à la page aide, couleur selon joueur
             flipCarte(el);
         }
 
-        // Gestion des votes
+        // Vote badges
         const badge = el.querySelector(".vote-badge");
         let nbVotes = 0;
         if (etat.votesLoups && etat.monRole === "loup-garou") {
@@ -394,12 +393,12 @@ function renderJoueurs(etat) {
 
 function cliquerJoueur(id) {
     if (!etatActuel) return;
-    // Ne peut pas se cibler soi-même
+    // Cannot target yourself
     if (id === monPseudo) return;
-    // Seul le chasseur mort peut interagir pendant sa phase
+    // Only a dead hunter can interact during the hunter phase
     const joueurVivant = etatActuel.vivant ?? true;
     if (!joueurVivant && !(etatActuel.phase === "chasseur" && etatActuel.monRole === "chasseur")) return;
-    // Phases non-interactives : clic ignoré
+    // Non-interactive phase: ignore click
     if (!estMonTour(etatActuel)) return;
 
     const joueur = etatActuel.joueurs.find((j) => j.id === id);
@@ -537,48 +536,62 @@ function genererMessageNarrateur(etat) {
     switch (etat.phase) {
         case "distribution":
             return "Les rôles sont distribués. Gardez votre secret...";
+
         case "nuit-cupidon":
+            // The narrator calls the role out loud — everyone hears it.
+            // Only Cupidon sees the action prompt.
             return monTour("cupidon")
-                ? "Choisissez deux joueurs qui seront liés à vie."
-                : "Cupidon décoche ses flèches...";
+                ? "Cupidon, réveille-toi ! Désigne deux âmes que tu vas lier pour toujours."
+                : "Cupidon, réveille-toi !";
+
         case "nuit-voyante":
             return monTour("voyante")
-                ? "Sondez l'âme d'un habitant du village."
-                : "La Voyante sonde les âmes...";
+                ? "Voyante, ouvre les yeux ! Sonde l'âme d'un habitant du village."
+                : "Voyante, ouvre les yeux !";
+
         case "nuit-petite-fille":
             return monTour("petite-fille")
-                ? "Osez-vous espionner les loups cette nuit ? (1 chance sur 3 d'être repérée)"
-                : "La Petite Fille entrouvre les yeux...";
+                ? "Petite Fille, tu peux entrouvrir les yeux... Oses-tu espionner les Loups ? (1 chance sur 3 d'être repérée)"
+                : "Petite Fille, tu peux entrouvrir les yeux...";
+
         case "nuit-loups":
             if (monTour("loup-garou")) {
                 return etat.alerteEspionnage
-                    ? "La Petite Fille vous observe... Designez votre proie avec prudence."
-                    : "Designez votre prochaine proie.";
+                    ? "Loups-Garous, réveillez-vous ! La Petite Fille vous observe... Désignez votre proie avec prudence."
+                    : "Loups-Garous, réveillez-vous ! Désignez votre prochaine victime.";
             }
-            return "La faim des Loups-Garous se fait entendre...";
+            return "Loups-Garous, réveillez-vous !";
+
         case "nuit-sorciere":
             return monTour("sorciere")
-                ? "Utiliserez-vous vos potions cette nuit ?"
-                : "La Sorcière prépare ses fioles...";
+                ? "Sorcière, réveille-toi ! Utiliseras-tu tes potions cette nuit ?"
+                : "Sorcière, réveille-toi !";
+
         case "jour":
             return "Le soleil se lève sur un village meurtri...";
+
         case "vote":
             return "Le village doit voter pour éliminer un suspect.";
+
         case "chasseur":
             return monTour("chasseur")
-                ? "Visez un joueur avant de trépasser !"
+                ? "Chasseur, dans ton dernier souffle, désigne ta cible !"
                 : "Le Chasseur va rendre son dernier souffle...";
+
         case "fin": {
             const v = etat.vainqueur;
             let res = "Fin de la partie. ";
             if (v === "loups")
                 res += "Les Loups-Garous ont dévoré tout le village !";
-            else if (v === "amants") res += "L'amour a triomphé ! (Amants)";
+            else if (v === "amants")
+                res += "L'amour a triomphé ! Les amants ont survécu.";
             else if (v === "villageois")
-                res += "Le Village a exterminé tous les loups !";
-            else res += "La partie a été annulée.";
+                res += "Le Village a exterminé tous les Loups-Garous !";
+            else
+                res += "La partie a été annulée.";
             return res;
         }
+
         default:
             return null;
     }

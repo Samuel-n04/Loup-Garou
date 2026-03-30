@@ -16,7 +16,10 @@ if (!$pseudo || !$mail || !$mdp) {
 $fichierUsers = '../data/users.json';
 $lockUsers    = '../data/users.lock';
 
-$lock = fopen($lockUsers, 'w');
+// Open (or create) the lock file using 'c' mode:
+// 'c' creates the file if it doesn't exist without truncating it if it does.
+// LOCK_EX = exclusive lock, only one writer at a time.
+$lock = fopen($lockUsers, 'c');
 flock($lock, LOCK_EX);
 
 if (file_exists($fichierUsers)) {
