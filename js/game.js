@@ -574,7 +574,9 @@ function genererMessageNarrateur(etat) {
             return "Le village doit voter pour éliminer un suspect.";
 
         case "chasseur":
-            return monTour("chasseur")
+            // The hunter IS dead during this phase, so monTour() (which checks etat.vivant)
+            // would always return false for him — check the role directly instead.
+            return etat.monRole === "chasseur"
                 ? "Chasseur, dans ton dernier souffle, désigne ta cible !"
                 : "Le Chasseur va rendre son dernier souffle...";
 

@@ -97,6 +97,10 @@ switch ($action) {
         break;
 
     case "pret":
+        if (!trouverDans($etat["joueurs"], fn ($j) => $j["id"] === $idJoueur)) {
+            $erreur = "Non autorisé";
+            break;
+        }
         $etat["prets"][$idJoueur] = true;
         if (count($etat["prets"]) >= count($etat["joueurs"])) {
             $etat["prets"] = [];
@@ -110,7 +114,7 @@ switch ($action) {
             break;
         }
         $joueur = findJoueur($etat, $idJoueur);
-        if ($joueur["role"] !== "cupidon") {
+        if ($joueur["role"] !== "cupidon" || !$joueur["vivant"]) {
             $erreur = "Non autorisé";
             break;
         }
@@ -146,13 +150,17 @@ switch ($action) {
             break;
         }
         $joueur = findJoueur($etat, $idJoueur);
-        if ($joueur["role"] !== "voyante") {
+        if ($joueur["role"] !== "voyante" || !$joueur["vivant"]) {
             $erreur = "Non autorisé";
             break;
         }
         $idCible = trim($body["idCible"] ?? "");
         if (!$idCible) {
             $erreur = "No target specified";
+            break;
+        }
+        if ($idCible === $idJoueur) {
+            $erreur = "Cannot investigate yourself";
             break;
         }
         $cible = trouverDans($etat["joueurs"], fn ($j) => $j["id"] === $idCible);
@@ -171,7 +179,7 @@ switch ($action) {
             break;
         }
         $joueur = findJoueur($etat, $idJoueur);
-        if ($joueur["role"] !== "sorciere") {
+        if ($joueur["role"] !== "sorciere" || !$joueur["vivant"]) {
             $erreur = "Non autorisé";
             break;
         }
@@ -212,7 +220,7 @@ switch ($action) {
             break;
         }
         $joueur = findJoueur($etat, $idJoueur);
-        if ($joueur["role"] !== "loup-garou") {
+        if ($joueur["role"] !== "loup-garou" || !$joueur["vivant"]) {
             $erreur = "Non autorisé";
             break;
         }
@@ -272,8 +280,9 @@ switch ($action) {
         $decouverte = rand(1, 3) === 1;
 
         if ($decouverte) {
-            // Spotted: wolves eliminate her instead, their original vote is cancelled
-            $etat["victime"] = $joueur["id"];
+            // Spotted: wolves eliminate her instead, their original votes are cancelled
+            $etat["victime"]    = $joueur["id"];
+            $etat["votesLoups"] = [];
             $etat["resultatEspionnage"] = ["decouverte" => true];
 
             $hasSorciere = (bool) trouverDans(
@@ -311,14 +320,6 @@ switch ($action) {
             break;
         }
         $etat["phase"] = "nuit-loups";
-        break;
-
-    case "finNuit":
-        if ($etat["phase"] !== "fin-nuit") {
-            $erreur = "Mauvaise phase";
-            break;
-        }
-        $etat = finNuit($etat);
         break;
 
     case "demarrerVote":
@@ -470,6 +471,10 @@ switch ($action) {
         break;
 
     case "chat":
+        if (!trouverDans($etat["joueurs"], fn ($j) => $j["id"] === $idJoueur)) {
+            $erreur = "Non autorisé";
+            break;
+        }
         $texte = trim($body["texte"] ?? "");
 
         if (!$texte) {

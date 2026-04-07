@@ -80,10 +80,6 @@ if ($etat["phase"] === "nuit-sorciere" && $joueur && $joueur["role"] === "sorcie
     $reponse["victime"] = $etat["victime"];
 }
 
-if ($etat["resultatVoyante"] && $joueur && $joueur["role"] === "voyante") {
-    $reponse["resultatVoyante"] = $etat["resultatVoyante"];
-}
-
 // Little girl sees the wolves she spied on
 if (isset($etat["resultatEspionnage"]) && $joueur && $joueur["role"] === "petite-fille") {
     $reponse["resultatEspionnage"] = $etat["resultatEspionnage"];
