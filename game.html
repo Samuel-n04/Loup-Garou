@@ -1,73 +1,71 @@
 <!doctype html>
 <html lang="fr">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Loup-Garou — Partie</title>
-        <link rel="stylesheet" href="css/game.css" />
-    </head>
-    <body class="nuit">
-        <!-- ── Topbar ───────────────────────────────────────────── -->
-        <div id="topbar">
-            <button onclick="location.href='help.html'">Aide</button>
 
-            <div id="tour-info">
-                <span id="phase-icon"></span>
-                <span id="phase-label">Nuit 1</span>
-            </div>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Loup-Garou — Partie</title>
+    <link rel="stylesheet" href="css/game.css" />
+</head>
 
-            <div id="mon-role-badge">Chargement…</div>
-            <button id="btnQuitter">Quitter</button>
+<body class="nuit">
+    <!-- ── Topbar ───────────────────────────────────────────── -->
+    <div id="topbar">
+        <button onclick="location.href='help.php'">Aide</button>
+
+        <div id="tour-info">
+            <span id="phase-icon"></span>
+            <span id="phase-label">Nuit 1</span>
         </div>
 
-        <!-- ── Arène ────────────────────────────────────────────── -->
-        <div id="arene">
-            <div id="table-ronde"></div>
+        <div id="mon-role-badge">Chargement…</div>
+        <button id="btnQuitter">Quitter</button>
+    </div>
 
-            <!-- Les cartes joueurs sont injectées ici par JS -->
+    <!-- ── Arène ────────────────────────────────────────────── -->
+    <div id="arene">
+        <div id="table-ronde"></div>
 
-            <!-- Message narrateur au centre -->
-            <div id="narrateur-overlay">
-                <div class="narr-titre">Le Narrateur</div>
-                <div class="narr-texte" id="narr-texte"></div>
-            </div>
+        <!-- Les cartes joueurs sont injectées ici par JS -->
 
-            <!-- Boutons d'action contextuels -->
-            <div id="actions-zone"></div>
-
-            <!-- Panneau rôle spécial -->
-            <div id="panneau-role">
-                <h2 id="panneau-titre"></h2>
-                <p id="panneau-desc"></p>
-                <div class="btns" id="panneau-btns"></div>
-            </div>
+        <!-- Message narrateur au centre -->
+        <div id="narrateur-overlay">
+            <div class="narr-titre">Le Narrateur</div>
+            <div class="narr-texte" id="narr-texte"></div>
         </div>
 
-        <!-- ── Sidebar ── -->
-        <div id="sidebar">
-            <div id="liste-vivants">
-                <div class="sidebar-header">Habitants du Village</div>
-                <div id="joueurs-container"></div>
-            </div>
+        <!-- Boutons d'action contextuels -->
+        <div id="actions-zone"></div>
 
-            <!-- ── Chat ── -->
-            <div id="chat">
-                <div id="chat-header">Discussion</div>
-                <div id="chat-messages"></div>
-                <div id="chat-input-zone">
-                    <input
-                        type="text"
-                        id="chat-input"
-                        placeholder="Votre message…"
-                        maxlength="200"
-                    />
-                    <button id="chat-send">Envoyer</button>
-                </div>
-            </div>
+        <!-- Panneau rôle spécial -->
+        <div id="panneau-role">
+            <h2 id="panneau-titre"></h2>
+            <p id="panneau-desc"></p>
+            <div class="btns" id="panneau-btns"></div>
+        </div>
+    </div>
+
+    <!-- ── Sidebar ── -->
+    <div id="sidebar">
+        <div id="liste-vivants">
+            <div class="sidebar-header">Habitants du Village</div>
+            <div id="joueurs-container"></div>
         </div>
 
+        <!-- ── Chat ── -->
+        <div id="chat">
+            <div id="chat-header">Discussion</div>
+            <div id="chat-messages"></div>
+            <div id="chat-input-zone">
+                <input type="text" id="chat-input" placeholder="Votre message…" maxlength="200" />
+                <button id="chat-send">Envoyer</button>
+            </div>
         </div>
-        <!-- Script principal -->
-        <script type="module" src="js/game.js"></script>
-    </body>
+    </div>
+
+    </div>
+    <!-- Script principal -->
+    <script type="module" src="js/game.js"></script>
+</body>
+
 </html>
