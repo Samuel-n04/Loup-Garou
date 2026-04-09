@@ -52,3 +52,181 @@
 .carte-back {
     transform: rotateY(180deg);
 }
+
+
+
+
+
+
+
+
+
+
+/* ── BASE & THEME (Identique à l'index) ── */
+body {
+    font-family: Georgia, serif;
+    background-color: #f0e8d0;
+    color: #2c2c1e;
+    margin: 0;
+    padding: 40px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.6;
+}
+
+/* ── BARRE DE RETOUR (Adaptée de la barre utilisateur) ── */
+div[style*="position: fixed"] {
+    background: #e8dfc4;
+    border: 1px solid #c8b890;
+    padding: 8px 16px;
+    font-size: 14px;
+    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.05);
+    z-index: 1000;
+}
+
+div[style*="position: fixed"] a {
+    color: #2c2c1e;
+    text-decoration: none;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 12px;
+}
+
+div[style*="position: fixed"] a:hover {
+    border-bottom: 1px solid #2c2c1e;
+}
+
+/* ── TITRES & SECTIONS ── */
+#container {
+    width: 100%;
+    max-width: 800px;
+}
+
+h1 {
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    border-bottom: 2px solid #c8b890;
+    padding-bottom: 10px;
+    margin-bottom: 40px;
+}
+
+section {
+    width: 100%;
+    background: #faf5e8;
+    border: 2px solid #c8b890;
+    padding: 30px;
+    margin-bottom: 30px;
+    box-sizing: border-box;
+}
+
+h2,
+h3 {
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #c8b890;
+    padding-bottom: 8px;
+    font-size: 1.2rem;
+}
+
+hr {
+    border: none;
+    height: 1px;
+    background: #c8b890;
+    margin: 40px 0;
+    opacity: 0.5;
+}
+
+/* ── SYSTEME DE CARTES (FLIP ANIMATION) ── */
+
+.carte-bloc {
+    display: flex;
+    align-items: flex-start;
+    gap: 25px;
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 1px dotted #c8b890;
+}
+
+.carte-bloc:last-child {
+    border-bottom: none;
+}
+
+/* Conteneur de la carte (Perspective) */
+.carte-container {
+    width: 120px;
+    height: 170px;
+    perspective: 1000px;
+    cursor: pointer;
+    flex-shrink: 0;
+    /* Empêche la carte de s'écraser */
+}
+
+/* Structure interne pour l'animation */
+.carte-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+}
+
+/* Classe ajoutée par le JS au clic */
+.carte-container.flipped .carte-inner {
+    transform: rotateY(180deg);
+}
+
+.carte-back {
+    transform: rotateY(180deg);
+    background: #faf5e8;
+}
+
+.carte-container img {
+    width: 90%;
+    height: auto;
+    image-rendering: pixelated;
+    /* Pour garder le style Pixel Art net */
+}
+
+/* Informations sur le rôle */
+.carte-info {
+    flex: 1;
+}
+
+.carte-info h3 {
+    color: #5d5d4a;
+    border-bottom-style: dashed;
+    font-size: 1.1rem;
+}
+
+.carte-info p {
+    margin: 0;
+    font-size: 0.95rem;
+    text-align: justify;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 600px) {
+    .carte-bloc {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .carte-info p {
+        text-align: center;
+    }
+
+    div[style*="position: fixed"] {
+        position: relative !important;
+        top: 0 !important;
+        left: 0 !important;
+        margin-bottom: 20px;
+        width: 100%;
+        text-align: center;
+    }
+}
