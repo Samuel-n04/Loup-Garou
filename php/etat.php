@@ -100,6 +100,14 @@ $reponse["messages"] = array_values(array_filter(
     fn ($m) => $m["ts"] > $depuis
 ));
 
+// Expose cooldown info so the client can show a countdown and trigger auto-advance.
+// Not sent for phases where no one needs to act.
+$phasesSansAction = ["attente", "fin"];
+if (!in_array($etat["phase"], $phasesSansAction)) {
+    $reponse["phaseDebutTs"]     = $etat["phaseDebutTs"] ?? null;
+    $reponse["cooldownSecondes"] = 60;
+}
+
 // At game end, reveal all roles
 if ($etat["phase"] === "fin") {
     $reponse["vainqueur"] = $etat["vainqueur"];

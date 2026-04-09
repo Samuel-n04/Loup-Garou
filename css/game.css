@@ -70,50 +70,50 @@ body {
 
 /* ── Nuit ── */
 body.nuit {
-    background-color: #0d0d1a;
-    color: #c8c8d8;
+    background-color: #1a0808;
+    color: #d8c8c8;
 }
 body.nuit #topbar {
-    background: #12122a;
-    border-color: #2a2a4a;
-    color: #c8c8d8;
+    background: #240f0f;
+    border-color: #4a2020;
+    color: #d8c8c8;
 }
 body.nuit #topbar button {
-    background: #1e1e3a;
-    border-color: #3a3a5a;
-    color: #c8c8d8;
+    background: #3a1414;
+    border-color: #5a2828;
+    color: #d8c8c8;
 }
 body.nuit #sidebar {
-    background: #10101f;
-    border-color: #2a2a4a;
+    background: #1a0a0a;
+    border-color: #4a2020;
 }
 body.nuit #liste-vivants,
 body.nuit #chat-header,
 body.nuit #chat-input-zone {
-    border-color: #2a2a4a;
+    border-color: #4a2020;
 }
 body.nuit #chat-input {
-    background: #1a1a30;
-    border-color: #2a2a4a;
-    color: #c8c8d8;
+    background: #2d1010;
+    border-color: #4a2020;
+    color: #d8c8c8;
 }
 body.nuit #chat-send {
-    background: #1e1e3a;
-    border-color: #3a3a5a;
-    color: #c8c8d8;
+    background: #3a1414;
+    border-color: #5a2828;
+    color: #d8c8c8;
 }
 body.nuit #narrateur-overlay {
-    background: #12122a;
-    border-color: #2a2a4a;
-    color: #e0e0f0;
+    background: #240f0f;
+    border-color: #4a2020;
+    color: #f0e0e0;
 }
 body.nuit .btn-action {
-    background: #1e1e3a;
-    border-color: #4a4a7a;
-    color: #c8c8d8;
+    background: #3a1414;
+    border-color: #6a2a2a;
+    color: #d8c8c8;
 }
 body.nuit .btn-action:hover {
-    background: #2a2a4a;
+    background: #4a2020;
 }
 body.nuit .btn-action.danger {
     border-color: #8b2020;
@@ -123,7 +123,7 @@ body.nuit .btn-action.danger:hover {
     background: #8b2020;
     color: #fff;
 }
-body.nuit .msg-auteur { color: #8888cc; }
+body.nuit .msg-auteur { color: #cc8888; }
 
 /* ── Jour ── */
 body.jour {
@@ -430,6 +430,22 @@ body.jour #narrateur-overlay {
     gap: 6px;
     z-index: 15;
 }
+
+#cooldown-timer {
+    position: absolute;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    opacity: 0.65;
+    color: #666;
+    text-align: center;
+    z-index: 15;
+    white-space: nowrap;
+    pointer-events: none;
+}
+body.nuit #cooldown-timer { color: #b89090; }
+body.jour #cooldown-timer { color: #666644; }
 
 .btn-action {
     border: 1px solid #000;

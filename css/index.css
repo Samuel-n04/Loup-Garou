@@ -193,7 +193,10 @@ p[id^="erreur"] {
 .role-item {
     cursor: pointer;
     position: relative;
-    display: inline-block;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
     margin: 0 !important;
     /* Reset du margin précédent */
 }
@@ -244,4 +247,18 @@ p[id^="erreur"] {
 .role-item input:checked:hover img {
     opacity: 1;
     transform: translateY(-4px);
+}
+
+.role-name {
+    font-size: 11px;
+    font-family: Georgia, serif;
+    color: #5d5d4a;
+    text-align: center;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.role-item input:checked ~ .role-name {
+    color: #2c2c1e;
+    font-weight: bold;
 }

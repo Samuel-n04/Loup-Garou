@@ -43,26 +43,31 @@ if (!isset($_SESSION['pseudo'])) {
                 <label class="role-item">
                     <input type="checkbox" name="role" value="voyante" checked />
                     <img src="sprite/voyante.png" alt="Voyante" title="Voyante" />
+                    <span class="role-name">Voyante</span>
                 </label>
 
                 <label class="role-item">
                     <input type="checkbox" name="role" value="sorciere" checked />
                     <img src="sprite/sorciere.png" alt="Sorcière" title="Sorcière" />
+                    <span class="role-name">Sorcière</span>
                 </label>
 
                 <label class="role-item">
                     <input type="checkbox" name="role" value="chasseur" checked />
                     <img src="sprite/chasseur.png" alt="Chasseur" title="Chasseur" />
+                    <span class="role-name">Chasseur</span>
                 </label>
 
                 <label class="role-item">
                     <input type="checkbox" name="role" value="cupidon" checked />
                     <img src="sprite/cupidon.png" alt="Cupidon" title="Cupidon" />
+                    <span class="role-name">Cupidon</span>
                 </label>
 
                 <label class="role-item">
                     <input type="checkbox" name="role" value="petite-fille" checked />
                     <img src="sprite/petite-fille.png" alt="Petite Fille" title="Petite Fille" />
+                    <span class="role-name">Petite Fille</span>
                 </label>
             </div>
         </fieldset>

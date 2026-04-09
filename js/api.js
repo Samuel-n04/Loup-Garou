@@ -152,6 +152,7 @@ export const petiteFillePasser   = () => action({ action: "petiteFillePasser" })
 export const finNuit = () => action({ action: "finNuit" });
 export const chat = (texte) => action({ action: "chat", texte });
 export const quitter = () => action({ action: "quitter" });
+export const tick    = () => action({ action: "tick" });
 
 // ── Separate endpoints ────────────────────────────────────
 export const creerPartie = (roles, joueurMax, estPublique) =>

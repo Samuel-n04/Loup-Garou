@@ -16,6 +16,71 @@ let etatActuel = null;
 let monPseudo = null;
 let selections = []; // For roles like Cupidon that require 2 targets
 
+// ---------------- Cooldown timer -----------------
+// When a player must act but doesn't, the server auto-advances after COOLDOWN_SECONDES.
+// The client shows a countdown and sends a "tick" action when it reaches zero.
+let _cooldownPhaseTs   = null; // phaseDebutTs of the running interval (detects phase changes)
+let _cooldownFin       = null; // Unix ms when the cooldown expires
+let _cooldownInterval  = null; // setInterval handle
+let _tickEnCours       = false; // prevents concurrent tick() calls
+
+function mettreAJourCooldown(etat) {
+    const phasesSansAction = ["attente", "fin"];
+    if (!etat.phaseDebutTs || !etat.cooldownSecondes || phasesSansAction.includes(etat.phase)) {
+        _stopperCooldown();
+        return;
+    }
+
+    const finMs = (etat.phaseDebutTs + etat.cooldownSecondes) * 1000;
+
+    if (_cooldownPhaseTs !== etat.phaseDebutTs) {
+        // Phase changed or first tick — restart the interval.
+        _stopperCooldown();
+        _cooldownPhaseTs = etat.phaseDebutTs;
+        _cooldownFin     = finMs;
+        _afficherCooldown();
+        _cooldownInterval = setInterval(_afficherCooldown, 1000);
+    } else {
+        _cooldownFin = finMs; // keep in sync with server
+    }
+}
+
+function _stopperCooldown() {
+    if (_cooldownInterval) {
+        clearInterval(_cooldownInterval);
+        _cooldownInterval = null;
+    }
+    _cooldownPhaseTs = null;
+    _cooldownFin     = null;
+    const el = document.getElementById("cooldown-timer");
+    if (el) el.textContent = "";
+}
+
+async function _afficherCooldown() {
+    const el = document.getElementById("cooldown-timer");
+    if (!el || !_cooldownFin) return;
+
+    const restant = Math.ceil((_cooldownFin - Date.now()) / 1000);
+
+    if (restant <= 0) {
+        el.textContent = "Phase en cours d'auto-avancement…";
+        clearInterval(_cooldownInterval);
+        _cooldownInterval = null;
+        if (!_tickEnCours) {
+            _tickEnCours = true;
+            try {
+                await API.tick();
+            } catch (e) {
+                console.error("[cooldown] tick error:", e);
+            } finally {
+                _tickEnCours = false;
+            }
+        }
+    } else {
+        el.textContent = `⏱ Auto-avance dans ${restant}s`;
+    }
+}
+
 // ---------------- Utils -----------------
 function escapeHTML(str) {
     return String(str)
@@ -202,6 +267,7 @@ function traiterMiseAJour(etat) {
         narrOverlay.classList.remove("visible");
     }
 
+    mettreAJourCooldown(etat);
     renderJoueurs(etat);
     renderChat(etat.messages);
     renderActions(etat);
@@ -240,13 +306,11 @@ function renderJoueurs(etat) {
         if (!idsActuels.includes(el.dataset.id)) el.remove();
     });
 
-    // Arc for other players: avoids the bottom area (reserved for the local player's card)
-    const N = autresJoueurs.length;
-    const GAP = Math.PI * 0.38; // ~68° gap on each side of the bottom
-    const arcDebut = Math.PI / 2 + GAP;
-    const arcTotal = 2 * Math.PI - 2 * GAP;
+    // Equal spacing around the full circle: local player at the bottom (π/2)
+    const N = etat.joueurs.length;
+    const localIndex = etat.joueurs.findIndex((j) => j.id === monPseudo);
 
-    etat.joueurs.forEach((j) => {
+    etat.joueurs.forEach((j, absoluteIndex) => {
         let el = document.querySelector(`.carte-joueur[data-id="${j.id}"]`);
         let estNouveau = false;
 
@@ -273,18 +337,11 @@ function renderJoueurs(etat) {
         }
 
         // --- TARGET POSITION ---
-        let targetX, targetY;
-        if (j.id === monPseudo) {
-            // Local player's card: bottom center, above the action buttons
-            targetX = centerX;
-            targetY = arene.clientHeight - 95;
-        } else {
-            const idx = autresJoueurs.findIndex((a) => a.id === j.id);
-            // Spread along the arc: N=1 → top center, N>1 → left to right across the top
-            const angle = arcDebut + (N > 1 ? idx / (N - 1) : 0.5) * arcTotal;
-            targetX = centerX + Math.cos(angle) * radius;
-            targetY = centerY + Math.sin(angle) * radius;
-        }
+        // Distribute all players equally around the circle; local player anchored at the bottom
+        const relativeIndex = (absoluteIndex - localIndex + N) % N;
+        const angle = Math.PI / 2 + relativeIndex * (2 * Math.PI / N);
+        const targetX = centerX + Math.cos(angle) * radius;
+        const targetY = centerY + Math.sin(angle) * radius;
 
         if (estNouveau) {
             const dealIndex = dealOrder.findIndex((x) => x.id === j.id);

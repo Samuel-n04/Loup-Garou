@@ -26,7 +26,61 @@ if (!isset($_SESSION['pseudo'])) {
             <!-- PART 1: How the site works -->
             <section id="fonctionnement">
                 <h2>Comment ça marche ?</h2>
-                <p><!-- TODO: add explanation of how the site works --></p>
+
+                <p>
+                    Loup-Garou est un jeu de déduction sociale en ligne. Une partie
+                    se joue en tour par tour, en alternant des phases de <strong>nuit</strong>
+                    et de <strong>jour</strong>.
+                </p>
+
+                <h3 style="margin-top:20px;">Créer ou rejoindre une partie</h3>
+                <p>
+                    Depuis la page d'accueil, tu peux <strong>créer une partie</strong> en
+                    choisissant le nombre de joueurs maximum et les rôles spéciaux à inclure.
+                    Un code à 6 lettres est généré : partage-le aux autres joueurs pour qu'ils
+                    te rejoignent. Tu peux aussi rejoindre une <strong>partie publique</strong>
+                    existante depuis la liste, ou entrer directement un code.
+                </p>
+
+                <h3 style="margin-top:20px;">Début de partie</h3>
+                <p>
+                    Une fois que tous les joueurs ont rejoint, l'hôte lance la partie.
+                    Chaque joueur reçoit secrètement un <strong>rôle</strong> (Loup-Garou,
+                    Villageois, Voyante…). Ta carte apparaît retournée face visible uniquement
+                    pour toi, en bas de l'arène.
+                </p>
+
+                <h3 style="margin-top:20px;">La nuit</h3>
+                <p>
+                    Pendant la nuit, les joueurs aux rôles spéciaux agissent dans l'ordre :
+                    Cupidon (première nuit), Voyante, Loups-Garous, Sorcière, Chasseur (si
+                    éliminé). Chaque action est secrète : seul le joueur concerné voit ce
+                    qu'il se passe. Les autres attendent.
+                </p>
+
+                <h3 style="margin-top:20px;">Le jour</h3>
+                <p>
+                    Au lever du jour, les morts de la nuit sont annoncés. Tous les joueurs
+                    encore en vie discutent via le <strong>chat</strong> pour identifier les
+                    Loups-Garous, puis votent pour éliminer un suspect. Le joueur qui
+                    reçoit le plus de votes est éliminé.
+                </p>
+
+                <h3 style="margin-top:20px;">Conditions de victoire</h3>
+                <p>
+                    Les <strong>Loups-Garous</strong> gagnent quand ils sont au moins aussi
+                    nombreux que les Villageois en vie. Les <strong>Villageois</strong>
+                    gagnent en éliminant tous les Loups-Garous. Si Cupidon a lié deux amants
+                    de camps opposés, ces derniers forment un troisième camp et gagnent s'ils
+                    sont les deux derniers survivants.
+                </p>
+
+                <h3 style="margin-top:20px;">Auto-avance</h3>
+                <p>
+                    Si un joueur dont c'est le tour n'agit pas dans le temps imparti,
+                    la phase passe automatiquement. Un compte à rebours est affiché
+                    en bas de l'arène pour indiquer le temps restant.
+                </p>
             </section>
 
             <hr />

@@ -7,6 +7,8 @@
 session_start();
 header("Content-Type: application/json");
 
+const COOLDOWN_SECONDES = 60;
+
 $idJoueur = $_SESSION['pseudo'] ?? null;
 if (!$idJoueur) {
     http_response_code(401);
@@ -57,6 +59,7 @@ if (!$etat) {
     exit;
 }
 $erreur = null;
+$phaseAvant = $etat["phase"];
 
 switch ($action) {
 
@@ -499,10 +502,20 @@ switch ($action) {
         }
         break;
 
+    case "tick":
+        // Triggered by the client when the cooldown timer expires.
+        // Advances the current phase automatically if the timeout has passed.
+        avancerCooldown($etat);
+        break;
+
     default:
         $erreur = "Action inconnue : $action";
 }
 if (!$erreur) {
+    // Whenever the phase changes, reset the cooldown clock.
+    if ($etat["phase"] !== $phaseAvant) {
+        $etat["phaseDebutTs"] = time();
+    }
     ecrireJSON($fichierPartie, $etat);
     mettreAJourIndex($code, $etat["phase"], count($etat["joueurs"]));
 }
@@ -871,4 +884,169 @@ function nomRole(string $role): string
         "petite-fille" => "Petite Fille",
     ];
     return $noms[$role] ?? ucfirst($role);
+}
+
+// ============================================================
+//  avancerCooldown — Auto-advances a phase when a player is AFK.
+//
+//  Called by the "tick" action, which the client sends when its
+//  local countdown reaches zero.  The exclusive file lock in
+//  action.php ensures only one concurrent tick actually runs.
+//
+//  Returns true if the phase was advanced, false otherwise.
+// ============================================================
+function avancerCooldown(array &$etat): bool
+{
+    if (!isset($etat["phaseDebutTs"])) {
+        // Game predates the cooldown feature — initialise the clock now.
+        $etat["phaseDebutTs"] = time();
+        return false;
+    }
+
+    if (time() - $etat["phaseDebutTs"] < COOLDOWN_SECONDES) {
+        return false;
+    }
+
+    // The phase has timed out — simulate the missing action.
+    switch ($etat["phase"]) {
+
+        case "distribution":
+            $etat["messages"][] = [
+                "auteur" => "Narrateur",
+                "texte"  => "La nuit commence automatiquement (délai expiré).",
+                "ts"     => time(),
+            ];
+            $etat["prets"] = [];
+            $etat = demarrerNuit($etat);
+            return true;
+
+        case "nuit-cupidon":
+            $vivants = array_values(array_filter($etat["joueurs"], fn ($j) => $j["vivant"]));
+            if (count($vivants) >= 2) {
+                shuffle($vivants);
+                $etat = lierAmants($etat, $vivants[0]["id"], $vivants[1]["id"]);
+            }
+            $etat["messages"][] = [
+                "auteur" => "Narrateur",
+                "texte"  => "Cupidon n'a pas agi à temps. L'amour frappe au hasard !",
+                "ts"     => time(),
+            ];
+            $hasVoyante = (bool) trouverDans($etat["joueurs"], fn ($j) => $j["role"] === "voyante" && $j["vivant"]);
+            $etat["phase"] = $hasVoyante ? "nuit-voyante" : prochainAvantLoups($etat);
+            return true;
+
+        case "nuit-voyante":
+            $etat["messages"][] = [
+                "auteur" => "Narrateur",
+                "texte"  => "La Voyante n'a pas scruté les âmes cette nuit.",
+                "ts"     => time(),
+            ];
+            $etat["phase"] = prochainAvantLoups($etat);
+            return true;
+
+        case "nuit-petite-fille":
+            $etat["phase"] = "nuit-loups";
+            return true;
+
+        case "nuit-loups":
+            $loups    = array_values(array_filter($etat["joueurs"], fn ($j) => $j["role"] === "loup-garou" && $j["vivant"]));
+            $nonLoups = array_values(array_filter($etat["joueurs"], fn ($j) => $j["role"] !== "loup-garou" && $j["vivant"]));
+            if (empty($nonLoups)) return false;
+            foreach ($loups as $loup) {
+                if (!isset($etat["votesLoups"][$loup["id"]])) {
+                    $cible = $nonLoups[array_rand($nonLoups)];
+                    $etat["votesLoups"][$loup["id"]] = $cible["id"];
+                }
+            }
+            if (count($etat["votesLoups"]) >= count($loups)) {
+                $etat["victime"]    = majoritéVotes($etat["votesLoups"]);
+                $etat["votesLoups"] = [];
+                $hasSorciere = (bool) trouverDans($etat["joueurs"], fn ($j) => $j["role"] === "sorciere" && $j["vivant"]);
+                if ($hasSorciere) {
+                    $etat["phase"] = "nuit-sorciere";
+                } else {
+                    $etat = finNuit($etat);
+                }
+            }
+            return true;
+
+        case "nuit-sorciere":
+            $etat["messages"][] = [
+                "auteur" => "Narrateur",
+                "texte"  => "La Sorcière range ses potions pour cette nuit.",
+                "ts"     => time(),
+            ];
+            $etat = finNuit($etat);
+            return true;
+
+        case "jour":
+            $etat["messages"][] = [
+                "auteur" => "Narrateur",
+                "texte"  => "Le vote commence automatiquement (délai expiré).",
+                "ts"     => time(),
+            ];
+            $etat["votesJour"] = [];
+            $etat["phase"]     = "vote";
+            return true;
+
+        case "vote":
+            $vivants = array_values(array_filter($etat["joueurs"], fn ($j) => $j["vivant"]));
+            foreach ($vivants as $j) {
+                if (!isset($etat["votesJour"][$j["id"]])) {
+                    $autres = array_values(array_filter($vivants, fn ($a) => $a["id"] !== $j["id"]));
+                    if (!empty($autres)) {
+                        $cible = $autres[array_rand($autres)];
+                        $etat["votesJour"][$j["id"]] = $cible["id"];
+                    }
+                }
+            }
+            if (count($etat["votesJour"]) >= count($vivants)) {
+                $idElimine   = majoritéVotes($etat["votesJour"]);
+                $nomElimine  = findJoueur($etat, $idElimine)["nom"];
+                $roleElimine = findJoueur($etat, $idElimine)["role"];
+                $etat["messages"][] = [
+                    "auteur" => "Narrateur",
+                    "texte"  => "Le village a décidé d'éliminer $nomElimine. Il était " . nomRole($roleElimine) . ".",
+                    "ts"     => time(),
+                ];
+                $etat["votesJour"] = [];
+                $elimine = findJoueur($etat, $idElimine);
+                if ($elimine["role"] === "chasseur" && $elimine["peutTirer"]) {
+                    tuerJoueur($etat, $idElimine);
+                    $etat["phase"] = "chasseur";
+                } else {
+                    tuerJoueur($etat, $idElimine);
+                    $etat = apresElimination($etat);
+                }
+            }
+            return true;
+
+        case "chasseur":
+            $chasseur = trouverDans($etat["joueurs"], fn ($j) => $j["role"] === "chasseur");
+            if ($chasseur) {
+                $ref = &findJoueurRef($etat, $chasseur["id"]);
+                $ref["peutTirer"] = false;
+            }
+            $etat["messages"][] = [
+                "auteur" => "Narrateur",
+                "texte"  => "Le Chasseur n'a pas eu le temps de tirer.",
+                "ts"     => time(),
+            ];
+            if ($etat["chasseurDeNuit"] ?? false) {
+                $etat["chasseurDeNuit"] = false;
+                $fin = verifierFin($etat);
+                if ($fin) {
+                    $etat["phase"]     = "fin";
+                    $etat["vainqueur"] = $fin;
+                } else {
+                    $etat["phase"] = "jour";
+                }
+            } else {
+                $etat = apresElimination($etat);
+            }
+            return true;
+
+        default:
+            return false;
+    }
 }
