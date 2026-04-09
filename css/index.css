@@ -1,0 +1,247 @@
+/* ── BASE & THEME JOUR ── */
+body {
+    font-family: Georgia, serif;
+    background-color: #f0e8d0;
+    color: #2c2c1e;
+    margin: 0;
+    padding: 40px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.6;
+}
+
+/* ── BARRE UTILISATEUR (TOP RIGHT) ── */
+div[style*="position: fixed"] {
+    background: #e8dfc4;
+    border: 1px solid #c8b890;
+    padding: 8px 16px;
+    font-size: 14px;
+    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.05);
+    align-items: center;
+}
+
+div[style*="position: fixed"] span {
+    font-weight: bold;
+    color: #5d5d4a;
+}
+
+div[style*="position: fixed"] a {
+    color: #2c2c1e;
+    text-decoration: none;
+    border-bottom: 1px dotted #2c2c1e;
+}
+
+/* ── SECTIONS & CONTENEURS ── */
+section {
+    width: 100%;
+    max-width: 600px;
+    background: #faf5e8;
+    border: 2px solid #c8b890;
+    padding: 24px;
+    margin-bottom: 30px;
+}
+
+h2,
+h3 {
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #c8b890;
+    padding-bottom: 8px;
+    font-size: 1.2rem;
+}
+
+hr {
+    border: none;
+    height: 1px;
+    background: #c8b890;
+    width: 100%;
+    max-width: 600px;
+    margin: 20px 0;
+    opacity: 0.5;
+}
+
+/* ── FORMULAIRES ── */
+label {
+    display: block;
+    margin: 12px 0 6px;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+input[type="number"],
+input[type="text"] {
+    background: #faf5e8;
+    border: 1px solid #c8b890;
+    padding: 8px;
+    font-family: Georgia, serif;
+    color: #2c2c1e;
+    width: 100%;
+    max-width: 200px;
+    outline: none;
+}
+
+input[type="number"]:focus,
+input[type="text"]:focus {
+    border-color: #a89060;
+    background: #fff;
+}
+
+fieldset {
+    border: 1px solid #c8b890;
+    padding: 15px;
+    margin: 20px 0;
+}
+
+legend {
+    padding: 0 10px;
+    font-style: italic;
+    color: #5d5d4a;
+}
+
+fieldset label {
+    display: inline-block;
+    margin-right: 15px;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+/* ── BOUTONS ── */
+button {
+    font-family: Georgia, serif;
+    background: #e0d6b8;
+    border: 1px solid #b8a070;
+    color: #2c2c1e;
+    padding: 8px 20px;
+    cursor: pointer;
+    text-transform: uppercase;
+    font-size: 12px;
+    transition: all 0.2s;
+    margin-top: 10px;
+}
+
+button:hover {
+    background: #cfc49e;
+    border-color: #a89060;
+}
+
+#btnDeconnexion {
+    padding: 4px 10px;
+    font-size: 11px;
+}
+
+#btnCreer,
+#btnDemarrer {
+    background: #d4e0b8;
+    /* Vert très léger pour l'action principale */
+    border-color: #a0b870;
+}
+
+#btnReset {
+    background: #e0b8b8;
+    /* Rouge très léger pour l'annulation */
+    border-color: #b87070;
+}
+
+/* ── LISTES ── */
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+#liste-parties-publiques li,
+#liste-joueurs li {
+    background: #ede4ca;
+    border: 1px solid #c8b890;
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* ── MESSAGES D'ERREUR ── */
+p[id^="erreur"] {
+    color: #a83232;
+    font-size: 0.85rem;
+    font-style: italic;
+    margin-top: 10px;
+}
+
+/* ── CLASSES UTILITAIRES ── */
+[hidden] {
+    display: none !important;
+}
+
+/* ── SÉLECTEUR DE RÔLES PAR IMAGES ── */
+
+#role-selection {
+    border: 1px solid #c8b890;
+    padding: 15px;
+    margin: 20px 0;
+}
+
+.role-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    padding: 10px 0;
+}
+
+.role-item {
+    cursor: pointer;
+    position: relative;
+    display: inline-block;
+    margin: 0 !important;
+    /* Reset du margin précédent */
+}
+
+/* On cache la checkbox originale mais elle reste fonctionnelle derrière */
+.role-item input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+/* Style de l'image par défaut (non sélectionnée / désactivée) */
+.role-item img {
+    width: 48px;
+    /* On l'affiche un peu plus grand que 32px pour le confort */
+    height: 48px;
+    display: block;
+    image-rendering: pixelated;
+    /* Garde le pixel art bien net */
+    background: #e8dfc4;
+    border: 2px solid #b8a070;
+    padding: 4px;
+    transition: all 0.2s ease;
+
+    /* Effet grisé par défaut */
+    filter: grayscale(100%);
+    opacity: 0.4;
+}
+
+/* Style quand la checkbox est COCHÉE (Rôle activé) */
+.role-item input:checked+img {
+    filter: grayscale(0%);
+    opacity: 1;
+    background: #fff;
+    border-color: #a89060;
+    box-shadow: 0 0 8px rgba(168, 144, 96, 0.4);
+    transform: translateY(-2px);
+}
+
+/* Effet au survol pour donner un feedback */
+.role-item:hover img {
+    opacity: 0.8;
+    border-color: #a89060;
+}
+
+.role-item input:checked:hover img {
+    opacity: 1;
+    transform: translateY(-4px);
+}
