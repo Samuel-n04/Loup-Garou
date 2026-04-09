@@ -34,3 +34,7 @@ A FAIRE!!!!!
 Mot de passe oublié — un lien "Mot de passe oublié" sur login.html qui envoie un email de réinitialisation (Firebase le gère en une ligne)
 Pseudo/username — pour l'instant tu n'as que l'email. Dans un jeu tu voudras afficher un pseudo, pas un email
 Protéger help.html — pour l'instant n'importe qui peut y accéder sans être connecté, si tu veux la restreindre
+
+
+bug : la petite fille n'a pas les cartes retourné des loups garou apres leur mort 
+bug : Si il y' a plusieurs loups, chaque loup garou ne voit pas qui d'autre est loup garou 
