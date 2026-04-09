@@ -49,17 +49,16 @@ $fichierLock   = "../data/partie_$code.lock";
 $lock = fopen($fichierLock, "c");
 flock($lock, LOCK_EX);
 
-$etat = lireJSON($fichierPartie);
+try {
+    $etat = lireJSON($fichierPartie);
 
-if (!$etat) {
-    flock($lock, LOCK_UN);
-    fclose($lock);
-    http_response_code(404);
-    echo json_encode(["erreur" => "Partie introuvable."]);
-    exit;
-}
-$erreur = null;
-$phaseAvant = $etat["phase"];
+    if (!$etat) {
+        http_response_code(404);
+        echo json_encode(["erreur" => "Partie introuvable."]);
+        exit;
+    }
+    $erreur = null;
+    $phaseAvant = $etat["phase"];
 
 switch ($action) {
 
@@ -255,6 +254,13 @@ switch ($action) {
             $etat["victime"]    = majoritéVotes($etat["votesLoups"]);
             $etat["votesLoups"] = [];
 
+            $finAvant = verifierFin($etat);
+            if ($finAvant) {
+                $etat["phase"] = "fin";
+                $etat["vainqueur"] = $finAvant;
+                break;
+            }
+
             $hasSorciere = (bool) trouverDans(
                 $etat["joueurs"],
                 fn ($j) => $j["role"] === "sorciere" && $j["vivant"]
@@ -287,6 +293,13 @@ switch ($action) {
             $etat["victime"]    = $joueur["id"];
             $etat["votesLoups"] = [];
             $etat["resultatEspionnage"] = ["decouverte" => true];
+
+            $finAvant = verifierFin($etat);
+            if ($finAvant) {
+                $etat["phase"] = "fin";
+                $etat["vainqueur"] = $finAvant;
+                break;
+            }
 
             $hasSorciere = (bool) trouverDans(
                 $etat["joueurs"],
@@ -368,7 +381,80 @@ switch ($action) {
         $vivants = array_filter($etat["joueurs"], fn ($j) => $j["vivant"]);
 
         if (count($etat["votesJour"]) >= count($vivants)) {
-            $idElimine   = majoritéVotes($etat["votesJour"]);
+            $idElimine = majoritéVotes($etat["votesJour"]);
+
+            if ($idElimine === "") {
+                $candidats = candidatsEgaux($etat["votesJour"]);
+                $etat["votesJour"] = [];
+                $etat["candidatsRevote"] = $candidats;
+                $noms = implode(" et ", array_map(fn($id) => findJoueur($etat, $id)["nom"], $candidats));
+                $etat["messages"][] = [
+                    "auteur" => "Narrateur",
+                    "texte"  => "Égalité entre $noms ! Le village doit se mettre d'accord. Un second vote est organisé.",
+                    "ts"     => time(),
+                ];
+                $etat["phase"] = "revote";
+            } else {
+                $etat["votesJour"] = [];
+                $nomElimine  = findJoueur($etat, $idElimine)["nom"];
+                $roleElimine = findJoueur($etat, $idElimine)["role"];
+
+                $etat["messages"][] = [
+                    "auteur" => "Narrateur",
+                    "texte"  => "Le village a décidé d'éliminer $nomElimine. Il était " . nomRole($roleElimine) . ".",
+                    "ts"     => time(),
+                ];
+
+                $elimine = findJoueur($etat, $idElimine);
+                if ($elimine["role"] === "chasseur" && ($elimine["peutTirer"] ?? false)) {
+                    tuerJoueur($etat, $idElimine);
+                    $etat["phase"] = "chasseur";
+                } else {
+                    tuerJoueur($etat, $idElimine);
+                    $etat = apresElimination($etat);
+                }
+            }
+        }
+        break;
+
+    case "revote":
+        if ($etat["phase"] !== "revote") {
+            $erreur = "Mauvaise phase";
+            break;
+        }
+        $joueur = findJoueur($etat, $idJoueur);
+        if (!$joueur["vivant"]) {
+            $erreur = "Joueur mort";
+            break;
+        }
+        $idCible = trim($body["idCible"] ?? "");
+        if (!$idCible) {
+            $erreur = "No target specified";
+            break;
+        }
+        if ($idCible === $idJoueur) {
+            $erreur = "Cannot vote for yourself";
+            break;
+        }
+        if (!in_array($idCible, $etat["candidatsRevote"] ?? [])) {
+            $erreur = "Cible non autorisée pour le revote";
+            break;
+        }
+        $cibleJoueur = trouverDans($etat["joueurs"], fn ($j) => $j["id"] === $idCible);
+        if (!$cibleJoueur || !$cibleJoueur["vivant"]) {
+            $erreur = "Invalid target";
+            break;
+        }
+
+        $etat["votesJour"][$idJoueur] = $idCible;
+        $vivants = array_filter($etat["joueurs"], fn ($j) => $j["vivant"]);
+
+        if (count($etat["votesJour"]) >= count($vivants)) {
+            // On tie: pick arbitrarily
+            $idElimine = majoritéVotes($etat["votesJour"], true);
+            $etat["votesJour"] = [];
+            $etat["candidatsRevote"] = [];
+
             $nomElimine  = findJoueur($etat, $idElimine)["nom"];
             $roleElimine = findJoueur($etat, $idElimine)["role"];
 
@@ -378,10 +464,8 @@ switch ($action) {
                 "ts"     => time(),
             ];
 
-            $etat["votesJour"] = [];
-
             $elimine = findJoueur($etat, $idElimine);
-            if ($elimine["role"] === "chasseur" && $elimine["peutTirer"]) {
+            if ($elimine["role"] === "chasseur" && ($elimine["peutTirer"] ?? false)) {
                 tuerJoueur($etat, $idElimine);
                 $etat["phase"] = "chasseur";
             } else {
@@ -510,24 +594,25 @@ switch ($action) {
 
     default:
         $erreur = "Action inconnue : $action";
-}
-if (!$erreur) {
-    // Whenever the phase changes, reset the cooldown clock.
-    if ($etat["phase"] !== $phaseAvant) {
-        $etat["phaseDebutTs"] = time();
     }
-    ecrireJSON($fichierPartie, $etat);
-    mettreAJourIndex($code, $etat["phase"], count($etat["joueurs"]));
-}
+    if (!$erreur) {
+        // Whenever the phase changes, reset the cooldown clock.
+        if ($etat["phase"] !== $phaseAvant) {
+            $etat["phaseDebutTs"] = time();
+        }
+        ecrireJSON($fichierPartie, $etat);
+        mettreAJourIndex($code, $etat["phase"], count($etat["joueurs"]));
+    }
 
-flock($lock, LOCK_UN);
-fclose($lock);
-
-if ($erreur) {
-    http_response_code(400);
-    echo json_encode(["erreur" => $erreur]);
-} else {
-    echo json_encode(["ok" => true, "phase" => $etat["phase"]]);
+    if ($erreur) {
+        http_response_code(400);
+        echo json_encode(["erreur" => $erreur]);
+    } else {
+        echo json_encode(["ok" => true, "phase" => $etat["phase"]]);
+    }
+} finally {
+    flock($lock, LOCK_UN);
+    fclose($lock);
 }
 
 // ============================================================
@@ -583,6 +668,7 @@ function demarrerNuit(array $etat): array
     $etat["victime"]            = null;
     $etat["votesLoups"]         = [];
     $etat["alerteEspionnage"]   = false;
+    $etat["candidatsRevote"]    = [];
     $etat["resultatEspionnage"] = null;
     // Reset the night-death tracker at the start of each new night.
     // tuerJoueur() will populate this list for ALL deaths that occur during
@@ -695,7 +781,7 @@ function annoncerMortsDeLaNuit(array &$etat): void
     }
 }
 
-function majoritéVotes(array $votes): string
+function majoritéVotes(array $votes, bool $arbitraire = false): string
 {
     $comptage = [];
     foreach ($votes as $cible) {
@@ -710,8 +796,22 @@ function majoritéVotes(array $votes): string
     $max      = reset($comptage);
     $gagnants = array_keys($comptage, $max);
 
-    // In case of a tie, pick a random winner
-    return $gagnants[array_rand($gagnants)];
+    if (count($gagnants) > 1) {
+        return $arbitraire ? $gagnants[array_rand($gagnants)] : "";
+    }
+
+    return $gagnants[0];
+}
+
+function candidatsEgaux(array $votes): array
+{
+    $comptage = [];
+    foreach ($votes as $cible) {
+        $comptage[$cible] = ($comptage[$cible] ?? 0) + 1;
+    }
+    if (empty($comptage)) return [];
+    $max = max($comptage);
+    return array_values(array_keys($comptage, $max));
 }
 
 // ============================================================
@@ -807,6 +907,10 @@ function verifierFin(array $etat): ?string
 // ============================================================
 //  UTILITIES
 // ============================================================
+// Note: this lireJSON is intentionally lock-free — it is always called
+// while the exclusive flock is already held by this process (see top of file).
+// etat.php has its own lireJSON that acquires a shared lock itself because
+// it does not hold an exclusive lock.
 function lireJSON(string $chemin): ?array
 {
     if (!file_exists($chemin)) {
@@ -1001,7 +1105,57 @@ function avancerCooldown(array &$etat): bool
                 }
             }
             if (count($etat["votesJour"]) >= count($vivants)) {
-                $idElimine   = majoritéVotes($etat["votesJour"]);
+                $idElimine = majoritéVotes($etat["votesJour"]);
+
+                if ($idElimine === "") {
+                    $candidats = candidatsEgaux($etat["votesJour"]);
+                    $etat["votesJour"] = [];
+                    $etat["candidatsRevote"] = $candidats;
+                    $noms = implode(" et ", array_map(fn($id) => findJoueur($etat, $id)["nom"], $candidats));
+                    $etat["messages"][] = [
+                        "auteur" => "Narrateur",
+                        "texte"  => "Égalité entre $noms ! Le village doit se mettre d'accord. Un second vote est organisé.",
+                        "ts"     => time(),
+                    ];
+                    $etat["phase"] = "revote";
+                } else {
+                    $etat["votesJour"] = [];
+                    $nomElimine  = findJoueur($etat, $idElimine)["nom"];
+                    $roleElimine = findJoueur($etat, $idElimine)["role"];
+                    $etat["messages"][] = [
+                        "auteur" => "Narrateur",
+                        "texte"  => "Le village a décidé d'éliminer $nomElimine. Il était " . nomRole($roleElimine) . ".",
+                        "ts"     => time(),
+                    ];
+                    $elimine = findJoueur($etat, $idElimine);
+                    if ($elimine["role"] === "chasseur" && ($elimine["peutTirer"] ?? false)) {
+                        tuerJoueur($etat, $idElimine);
+                        $etat["phase"] = "chasseur";
+                    } else {
+                        tuerJoueur($etat, $idElimine);
+                        $etat = apresElimination($etat);
+                    }
+                }
+            }
+            return true;
+
+        case "revote":
+            $vivants = array_values(array_filter($etat["joueurs"], fn ($j) => $j["vivant"]));
+            $candidats = $etat["candidatsRevote"] ?? [];
+            foreach ($vivants as $j) {
+                if (!isset($etat["votesJour"][$j["id"]]) && !empty($candidats)) {
+                    // Auto-vote: pick among candidates only (excluding self if candidate)
+                    $cibles = array_values(array_filter($candidats, fn ($id) => $id !== $j["id"]));
+                    if (empty($cibles)) $cibles = $candidats; // edge case: only one candidate
+                    $etat["votesJour"][$j["id"]] = $cibles[array_rand($cibles)];
+                }
+            }
+            if (count($etat["votesJour"]) >= count($vivants)) {
+                // Arbitraire on tie
+                $idElimine = majoritéVotes($etat["votesJour"], true);
+                $etat["votesJour"] = [];
+                $etat["candidatsRevote"] = [];
+
                 $nomElimine  = findJoueur($etat, $idElimine)["nom"];
                 $roleElimine = findJoueur($etat, $idElimine)["role"];
                 $etat["messages"][] = [
@@ -1009,9 +1163,8 @@ function avancerCooldown(array &$etat): bool
                     "texte"  => "Le village a décidé d'éliminer $nomElimine. Il était " . nomRole($roleElimine) . ".",
                     "ts"     => time(),
                 ];
-                $etat["votesJour"] = [];
                 $elimine = findJoueur($etat, $idElimine);
-                if ($elimine["role"] === "chasseur" && $elimine["peutTirer"]) {
+                if ($elimine["role"] === "chasseur" && ($elimine["peutTirer"] ?? false)) {
                     tuerJoueur($etat, $idElimine);
                     $etat["phase"] = "chasseur";
                 } else {

@@ -123,6 +123,7 @@ body.nuit .btn-action.danger:hover {
     background: #8b2020;
     color: #fff;
 }
+body.nuit .btn-action:disabled { opacity: 0.35; cursor: not-allowed; }
 body.nuit .msg-auteur { color: #cc8888; }
 
 /* ── Jour ── */
@@ -455,6 +456,7 @@ body.jour #cooldown-timer { color: #666644; }
     cursor: pointer;
 }
 .btn-action:hover { background: #eee; }
+.btn-action:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn-action.danger { border-color: red; color: red; }
 .btn-action.danger:hover { background: red; color: #fff; }
 

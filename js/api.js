@@ -145,6 +145,7 @@ export const sorciere = (utiliserVie, idCibleMort = null) =>
     action({ action: "sorciere", utiliserVie, idCibleMort });
 export const demarrerVote = () => action({ action: "demarrerVote" });
 export const vote = (idCible) => action({ action: "vote", idCible });
+export const revote = (idCible) => action({ action: "revote", idCible });
 export const chasseurTire = (idCible) =>
     action({ action: "chasseurTire", idCible });
 export const petiteFilleEspionne = () => action({ action: "petiteFilleEspionne" });

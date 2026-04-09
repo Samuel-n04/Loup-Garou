@@ -146,7 +146,8 @@ function estMonTour(etat) {
         case "nuit-voyante":       return etat.monRole === "voyante";
         case "nuit-loups":         return etat.monRole === "loup-garou";
         case "nuit-sorciere":      return etat.monRole === "sorciere";
-        case "vote":               return true;
+        case "vote":
+        case "revote":             return true;
         case "chasseur":           return etat.monRole === "chasseur";
         default:                   return false;
     }
@@ -162,6 +163,7 @@ function cardCibleValide(etat, j) {
         case "nuit-loups":        return etat.monRole === "loup-garou";
         case "nuit-sorciere":     return etat.monRole === "sorciere" && !!etat.potionMort;
         case "vote":              return !!etat.vivant;
+        case "revote":            return !!etat.vivant && (etat.candidatsRevote ?? []).includes(j.id);
         case "chasseur":          return etat.monRole === "chasseur";
         default:                  return false;
     }
@@ -432,7 +434,7 @@ function renderJoueurs(etat) {
             nbVotes = Object.values(etat.votesLoups).filter(
                 (cid) => cid === j.id,
             ).length;
-        } else if (etat.phase === "vote" && etat.votesJour) {
+        } else if ((etat.phase === "vote" || etat.phase === "revote") && etat.votesJour) {
             nbVotes = Object.values(etat.votesJour).filter(
                 (cid) => cid === j.id,
             ).length;
@@ -481,7 +483,11 @@ function renderActions(etat) {
     zone.innerHTML = "";
 
     if (etat.phase === "distribution") {
-        addBtn("Je suis prêt", () => API.pret());
+        if (etat.estPret) {
+            addBtn("En attente des autres joueurs…", null);
+        } else {
+            addBtn("Je suis prêt", () => API.pret());
+        }
         return;
     }
 
@@ -519,17 +525,25 @@ function renderActions(etat) {
             break;
         case "nuit-sorciere":
             if (etat.monRole === "sorciere") {
-                if (etat.victime && etat.potionVie) {
-                    addBtn(`Sauver ${getName(etat.victime)}`, () =>
-                        API.sorciere(true),
-                    );
+                if (etat.potionVie) {
+                    if (etat.victime) {
+                        addBtn(`Sauver ${getName(etat.victime)}`, () =>
+                            API.sorciere(true),
+                        );
+                    } else {
+                        addBtn("Sauver (personne n'est en danger)", null);
+                    }
                 }
-                if (cible && cible !== monPseudo && etat.potionMort) {
-                    addBtn(
-                        `Empoisonner ${getName(cible)}`,
-                        () => API.sorciere(false, cible),
-                        "danger",
-                    );
+                if (etat.potionMort) {
+                    if (cible && cible !== monPseudo) {
+                        addBtn(
+                            `Empoisonner ${getName(cible)}`,
+                            () => API.sorciere(false, cible),
+                            "danger",
+                        );
+                    } else {
+                        addBtn("Tuer (choisissez une cible)", null, "danger");
+                    }
                 }
                 addBtn("Ne rien faire", () => API.sorciere(false));
             }
@@ -537,6 +551,11 @@ function renderActions(etat) {
         case "vote":
             if (cible && cible !== monPseudo) {
                 addBtn(`Voter contre ${getName(cible)}`, () => API.vote(cible));
+            }
+            break;
+        case "revote":
+            if (cible && cible !== monPseudo) {
+                addBtn(`Voter contre ${getName(cible)}`, () => API.revote(cible));
             }
             break;
         case "chasseur":
@@ -555,7 +574,14 @@ function addBtn(text, onclick, cls = "") {
     const btn = document.createElement("button");
     btn.className = "btn-action " + cls;
     btn.textContent = text;
-    btn.onclick = onclick;
+    if (onclick) {
+        btn.onclick = () => {
+            btn.disabled = true;
+            onclick();
+        };
+    } else {
+        btn.disabled = true;
+    }
     document.getElementById("actions-zone").appendChild(btn);
     animateScale(btn);
 }
@@ -629,6 +655,9 @@ function genererMessageNarrateur(etat) {
 
         case "vote":
             return "Le village doit voter pour éliminer un suspect.";
+
+        case "revote":
+            return "Égalité ! Le village revote parmi les candidats à égalité.";
 
         case "chasseur":
             // The hunter IS dead during this phase, so monTour() (which checks etat.vivant)

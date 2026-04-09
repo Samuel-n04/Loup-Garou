@@ -76,7 +76,7 @@ if ($joueur) {
 }
 
 // Witch sees who the werewolves targeted this night
-if ($etat["phase"] === "nuit-sorciere" && $joueur && $joueur["role"] === "sorciere" && $etat["victime"]) {
+if ($etat["phase"] === "nuit-sorciere" && $joueur && $joueur["role"] === "sorciere" && ($etat["victime"] ?? null)) {
     $reponse["victime"] = $etat["victime"];
 }
 
@@ -85,11 +85,17 @@ if (isset($etat["resultatEspionnage"]) && $joueur && $joueur["role"] === "petite
     $reponse["resultatEspionnage"] = $etat["resultatEspionnage"];
 }
 
-// During the vote phase, everyone can see the vote count
-if ($etat["phase"] === "vote") {
-    $reponse["nbVotes"]   = count($etat["votesJour"]);
-    $reponse["nbVivants"] = count(array_filter($etat["joueurs"], fn ($j) => $j["vivant"]));
-    $reponse["votesJour"] = $etat["votesJour"];
+// During distribution, tell the player if they already clicked ready
+if ($etat["phase"] === "distribution" && $joueur) {
+    $reponse["estPret"] = isset($etat["prets"][$idJoueur]);
+}
+
+// During the vote/revote phase, everyone can see the vote count
+if ($etat["phase"] === "vote" || $etat["phase"] === "revote") {
+    $reponse["nbVotes"]        = count($etat["votesJour"]);
+    $reponse["nbVivants"]      = count(array_filter($etat["joueurs"], fn ($j) => $j["vivant"]));
+    $reponse["votesJour"]      = $etat["votesJour"];
+    $reponse["candidatsRevote"] = $etat["candidatsRevote"] ?? [];
 }
 
 // Chat messages — only send messages newer than the client's last known timestamp
