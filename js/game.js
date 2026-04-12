@@ -81,6 +81,72 @@ async function _afficherCooldown() {
     }
 }
 
+// ---------------- Auto-vote timer (jour phase) -----------------
+// When the phase becomes "jour", a countdown starts for all players.
+// When it reaches zero, the hôte automatically launches the village vote.
+const VOTE_AUTO_DELAI_SECONDES = 30;
+
+let _voteAutoPhaseTs  = null; // phaseDebutTs of the running interval (detects phase changes)
+let _voteAutoFin      = null; // Unix ms when the countdown expires
+let _voteAutoInterval = null; // setInterval handle
+let _voteEnCours      = false; // prevents concurrent demarrerVote() calls
+
+function mettreAJourVoteAuto(etat) {
+    if (etat.phase !== "jour") {
+        _stopperVoteAuto();
+        return;
+    }
+
+    const debut = etat.phaseDebutTs ?? Math.floor(Date.now() / 1000);
+    const finMs = (debut + VOTE_AUTO_DELAI_SECONDES) * 1000;
+
+    if (_voteAutoPhaseTs !== debut) {
+        _stopperVoteAuto();
+        _voteAutoPhaseTs  = debut;
+        _voteAutoFin      = finMs;
+        _afficherVoteAuto(etat);
+        _voteAutoInterval = setInterval(() => _afficherVoteAuto(etatActuel), 1000);
+    } else {
+        _voteAutoFin = finMs;
+    }
+}
+
+function _stopperVoteAuto() {
+    if (_voteAutoInterval) {
+        clearInterval(_voteAutoInterval);
+        _voteAutoInterval = null;
+    }
+    _voteAutoPhaseTs = null;
+    _voteAutoFin     = null;
+    const el = document.getElementById("vote-auto-timer");
+    if (el) el.textContent = "";
+}
+
+async function _afficherVoteAuto(etat) {
+    const el = document.getElementById("vote-auto-timer");
+    if (!el || !_voteAutoFin) return;
+
+    const restant = Math.ceil((_voteAutoFin - Date.now()) / 1000);
+
+    if (restant <= 0) {
+        el.textContent = "Le vote commence…";
+        clearInterval(_voteAutoInterval);
+        _voteAutoInterval = null;
+        if (etat?.estHote && !_voteEnCours) {
+            _voteEnCours = true;
+            try {
+                await API.demarrerVote();
+            } catch (e) {
+                console.error("[vote-auto] demarrerVote error:", e);
+            } finally {
+                _voteEnCours = false;
+            }
+        }
+    } else {
+        el.textContent = `⏳ Vote dans ${restant}s`;
+    }
+}
+
 // ---------------- Utils -----------------
 function escapeHTML(str) {
     return String(str)
@@ -270,6 +336,7 @@ function traiterMiseAJour(etat) {
     }
 
     mettreAJourCooldown(etat);
+    mettreAJourVoteAuto(etat);
     renderJoueurs(etat);
     renderChat(etat.messages);
     renderActions(etat);
@@ -489,10 +556,6 @@ function renderActions(etat) {
             addBtn("Je suis prêt", () => API.pret());
         }
         return;
-    }
-
-    if (etat.phase === "jour" && etat.estHote) {
-        addBtn("Lancer le vote du village", () => API.demarrerVote());
     }
 
     if (!etat.vivant && etat.phase !== "chasseur") return;

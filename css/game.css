@@ -448,6 +448,21 @@ body.jour #narrateur-overlay {
 body.nuit #cooldown-timer { color: #b89090; }
 body.jour #cooldown-timer { color: #666644; }
 
+#vote-auto-timer {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0.85;
+    color: #886622;
+    text-align: center;
+    z-index: 15;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
 .btn-action {
     border: 1px solid #000;
     background: #fff;
