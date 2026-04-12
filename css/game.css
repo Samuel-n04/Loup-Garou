@@ -494,10 +494,18 @@ body.jour #cooldown-timer { color: #666644; }
 #panneau-role p { font-size: 13px; margin-bottom: 14px; font-style: italic; }
 #panneau-role .btns { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
 
+/* ── Fin de partie — countdown ── */
+#fin-redirect {
+    font-size: 11px;
+    opacity: 0.65;
+    margin-top: 8px;
+    color: inherit;
+}
+
 /* ── Responsive tablette (≤ 900px) ── */
 @media (max-width: 900px) {
     :root { --card-size: 64px; }
-    body { grid-template-columns: 1fr; grid-template-rows: 48px 1fr 250px; }
+    body { grid-template-columns: 1fr; grid-template-rows: 48px 1fr 260px; }
     #sidebar {
         grid-column: 1;
         grid-row: 3;
@@ -516,8 +524,61 @@ body.jour #cooldown-timer { color: #666644; }
 
 /* ── Responsive mobile (≤ 600px) ── */
 @media (max-width: 600px) {
-    :root { --card-size: 32px; } /* 1× pixel-perfect sur mobile */
-    body { grid-template-rows: 40px 1fr 180px; }
-    #topbar { padding: 0 10px; }
-    .carte-joueur .pseudo { font-size: 8px; top: -18px; }
+    :root { --card-size: 48px; }
+    body { grid-template-rows: auto 1fr 240px; }
+
+    /* Topbar : empile sur deux lignes si besoin */
+    #topbar {
+        padding: 4px 10px;
+        flex-wrap: wrap;
+        gap: 4px;
+        height: auto;
+        min-height: 48px;
+    }
+    #topbar button {
+        padding: 6px 12px;
+        font-size: 12px;
+        min-height: 36px;
+    }
+    #tour-info { font-size: 12px; }
+    #mon-role-badge { font-size: 12px; }
+
+    /* Cartes */
+    .carte-joueur .pseudo { font-size: 9px; top: -18px; }
+
+    /* Narrateur */
+    #narrateur-overlay {
+        width: calc(100% - 24px);
+        max-width: none;
+        padding: 10px 14px;
+    }
+
+    /* Panneau rôle */
+    #panneau-role {
+        min-width: unset;
+        width: calc(100% - 24px);
+        padding: 16px;
+    }
+
+    /* Boutons d'action : plus grands pour le tactile */
+    .btn-action {
+        padding: 10px 18px;
+        font-size: 13px;
+        min-height: 44px;
+    }
+
+    /* Chat : input plus grand pour le tactile */
+    #chat-input {
+        font-size: 16px; /* évite le zoom iOS */
+        padding: 8px;
+        min-height: 40px;
+    }
+    #chat-send {
+        padding: 8px 14px;
+        min-height: 40px;
+        font-size: 13px;
+    }
+
+    /* Sidebar */
+    #liste-vivants { max-height: 100%; }
 }

@@ -15,6 +15,7 @@ const ROLE_SPRITES = {
 let etatActuel = null;
 let monPseudo = null;
 let selections = []; // For roles like Cupidon that require 2 targets
+let _finRedirectTimer = null;
 
 // ---------------- Cooldown timer -----------------
 // When a player must act but doesn't, the server auto-advances after COOLDOWN_SECONDES.
@@ -341,6 +342,24 @@ function traiterMiseAJour(etat) {
     renderChat(etat.messages);
     renderActions(etat);
     renderSidebar(etat);
+
+    if (etat.phase === "fin" && !_finRedirectTimer) {
+        let secondes = 30;
+        const el = document.getElementById("fin-redirect");
+        const update = () => {
+            if (el) el.textContent = `Retour au lobby dans ${secondes}s`;
+        };
+        update();
+        _finRedirectTimer = setInterval(() => {
+            secondes--;
+            update();
+            if (secondes <= 0) {
+                clearInterval(_finRedirectTimer);
+                API.clearCode();
+                location.href = "index.php";
+            }
+        }, 1000);
+    }
 }
 
 function renderSidebar(etat) {

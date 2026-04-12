@@ -68,4 +68,81 @@ input:focus {
 }
 
 /* ── BOUTON D'INSCRIPTION ── */
-#
+#btnInscription {
+    font-family: Georgia, serif;
+    background: #d4e0b8;
+    border: 1px solid #a0b870;
+    color: #2c2c1e;
+    padding: 12px 20px;
+    cursor: pointer;
+    text-transform: uppercase;
+    font-weight: bold;
+    font-size: 13px;
+    letter-spacing: 1px;
+    width: 100%;
+    margin-top: 6px;
+    transition: all 0.2s;
+}
+#btnInscription:hover {
+    background: #c5d4a4;
+    border-color: #8fa85d;
+    transform: translateY(-1px);
+}
+
+/* ── MESSAGES & LIENS ── */
+#erreur {
+    color: #a83232;
+    font-size: 0.9rem;
+    font-style: italic;
+    text-align: center;
+    min-height: 1.2em;
+    margin: 12px 0;
+}
+
+p {
+    text-align: center;
+    font-size: 0.95rem;
+    margin-top: 20px;
+}
+
+a {
+    color: #2c2c1e;
+    text-decoration: none;
+    font-weight: bold;
+}
+a:hover { border-bottom: 1px solid #2c2c1e; }
+
+a[href="index.php"] {
+    display: block;
+    text-align: center;
+    margin-top: 16px;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: #5d5d4a;
+    font-weight: normal;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 480px) {
+    body {
+        padding: 20px 12px;
+        background-color: #faf5e8;
+    }
+    #container {
+        padding: 24px 20px;
+        border: none;
+        background: transparent;
+    }
+    h1 { font-size: 1.4rem; }
+    input[type="text"],
+    input[type="email"],
+    input[type="password"] {
+        font-size: 16px;
+        padding: 14px;
+    }
+    #btnInscription {
+        padding: 14px 20px;
+        min-height: 48px;
+        font-size: 14px;
+    }
+}
