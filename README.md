@@ -2,6 +2,8 @@
 
 **Site :** https://loupgarou.free.nf
 
+> **Compatibilité navigateur :** le site ne fonctionne pas sur Firefox ni sur les navigateurs basés sur Firefox (Librewolf, Waterfox, etc.). Utiliser Chrome, Edge, ou Safari.
+
 Implémentation web multijoueur du jeu de société **Loup-Garou de Thiercelieux**.
 
 ## Fonctionnalités
